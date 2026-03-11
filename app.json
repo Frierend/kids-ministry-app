@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Kids Ministry",
+    "slug": "kids-ministry",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourchurch.kidsministry",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Use Face ID to quickly unlock the app.",
+        "NSCameraUsageDescription": "Take student profile photos."
+      }
+    },
+    "android": {
+      "package": "com.yourchurch.kidsministry",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-sqlite",
+      "expo-image-picker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "516ec8c6-1af9-4b4a-9246-e6da9b3c69d8"
+      }
+    }
+  }
+}
