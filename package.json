@@ -38,6 +38,7 @@
     "@babel/core": "^7.24.0",
     "@types/crypto-js": "^4.2.2",
     "@types/react": "~19.1.10",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "babel-preset-expo": "~13.0.0"
   }
 }
