@@ -1,175 +1,169 @@
-// src/screens/attendance/AttendanceHomeScreen.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AttendanceStackParamList, Ministry, AttendanceSession } from '../../types';
+import { AppCard } from '../../components/atoms/AppCard';
+import { PrimaryButton } from '../../components/atoms/PrimaryButton';
+import { MinistrySelector } from '../../components/molecules/MinistrySelector';
+import { SectionHeader } from '../../components/molecules/SectionHeader';
+import { AttendanceSessionCard } from '../../components/organisms/AttendanceSessionCard';
+import { ministryService } from '../../services/MinistryService';
+import { attendanceService } from '../../services/AttendanceService';
+import { Colors, Typography, Spacing } from '../../constants';
+import { format, addDays, subDays } from 'date-fns';
 
-import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, StyleSheet,
-} from 'react-native';
-import { ScreenWrapper, StackHeader } from '../../components/navigation/ScreenWrapper';
-import { GlassCard } from '../../components/atomic/GlassCard';
-import { SectionHeader, PrimaryButton, EmptyState } from '../../components/atomic';
-import { MinistrySelector } from '../../components/domain';
-import { Colors, Typography, Spacing, Radius } from '../../theme';
-import { useMinistries } from '../../hooks/useData';
-import { useMinistrySessionHistory } from '../../hooks/useAttendance';
-import type { AttendanceStackParamList } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+type Nav = NativeStackNavigationProp<AttendanceStackParamList, 'AttendanceHome'>;
 
-interface Props {
-  navigation: NativeStackNavigationProp<AttendanceStackParamList, 'AttendanceHome'>;
+function toYYYYMMDD(d: Date): string {
+  return format(d, 'yyyy-MM-dd');
 }
 
-export default function AttendanceHomeScreen({ navigation }: Props) {
-  const { data: ministries = [] } = useMinistries();
-  const [selectedMinistry, setSelectedMinistry] = useState<string | null>(ministries[0]?.id ?? null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const { data: history = [] } = useMinistrySessionHistory(selectedMinistry ?? '');
+export function AttendanceHomeScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [selectedMinistryId, setSelectedMinistryId] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState(toYYYYMMDD(new Date()));
+  const [recentSessions, setRecentSessions] = useState<AttendanceSession[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleTakeAttendance = () => {
-    if (!selectedMinistry) return;
-    navigation.navigate('SessionDetail', {
-      sessionId: 'new',
-      ministryId: selectedMinistry,
-      date: selectedDate,
-    });
+  const load = useCallback(async () => {
+    const [mins, sessions] = await Promise.all([
+      ministryService.getAll(),
+      attendanceService.getRecentSessions(undefined, 10),
+    ]);
+    setMinistries(mins);
+    if (mins.length && !selectedMinistryId) setSelectedMinistryId(mins[0].id);
+    setRecentSessions(sessions);
+  }, [selectedMinistryId]);
+
+  useEffect(() => { load(); }, []);
+
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  const handleStartSession = async () => {
+    if (!selectedMinistryId) return;
+    setLoading(true);
+    try {
+      const session = await attendanceService.getOrCreateSession(selectedMinistryId, selectedDate);
+      const ministry = ministries.find((m) => m.id === selectedMinistryId);
+      navigation.push('SessionDetail', {
+        sessionId: session.id,
+        ministryName: ministry?.name ?? 'Session',
+        sessionDate: selectedDate,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formattedDate = new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  const selectedMinistry = ministries.find((m) => m.id === selectedMinistryId);
+  const pointsForDay = selectedMinistry
+    ? (selectedMinistry.points_config as any)[format(new Date(selectedDate + 'T00:00:00'), 'EEEE').toLowerCase()] ?? 0
+    : 0;
 
-  // Increment/decrement date helpers
-  const changeDate = (delta: number) => {
-    const d = new Date(selectedDate + 'T12:00:00');
-    d.setDate(d.getDate() + delta);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
+  // Date strip: -3 to +3 from today
+  const today = new Date();
+  const dates = [-3, -2, -1, 0, 1, 2, 3].map((d) => addDays(today, d));
 
   return (
-    <ScreenWrapper>
-      <StackHeader title="Attendance" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }}
+      contentContainerStyle={{ paddingBottom: 24 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
-        {/* Ministry selector */}
-        <SectionHeader title="SELECT MINISTRY" />
-        <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.md }}>
-          {ministries.length === 0 ? (
-            <Text style={[Typography.body, { color: Colors.textTertiary }]}>
-              No ministries yet. Add one in Settings.
-            </Text>
-          ) : (
-            <MinistrySelector
-              ministries={ministries}
-              selected={selectedMinistry}
-              onSelect={setSelectedMinistry}
-            />
-          )}
-        </View>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.title}>Attendance</Text>
+        <TouchableOpacity onPress={() => navigation.push('AttendanceHistory', {})}>
+          <Text style={styles.historyIcon}>📅</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Date picker */}
-        <SectionHeader title="SESSION DATE" />
-        <GlassCard style={styles.dateCard}>
-          <View style={styles.dateRow}>
-            <PrimaryButton
-              label="‹"
-              onPress={() => changeDate(-1)}
-              variant="ghost"
-              size="sm"
-              style={styles.dateBtn}
-            />
-            <Text style={[Typography.bodySemiBold, { color: Colors.textPrimary }]}>{formattedDate}</Text>
-            <PrimaryButton
-              label="›"
-              onPress={() => changeDate(1)}
-              variant="ghost"
-              size="sm"
-              style={styles.dateBtn}
-              disabled={selectedDate >= new Date().toISOString().split('T')[0]}
-            />
-          </View>
-        </GlassCard>
-
-        {/* CTA */}
-        <View style={styles.ctaRow}>
-          <PrimaryButton
-            label={selectedMinistry ? '📋  Take Attendance' : 'Select a Ministry First'}
-            onPress={handleTakeAttendance}
-            disabled={!selectedMinistry}
-            size="lg"
-            style={{ flex: 1 }}
-          />
-        </View>
-
-        {/* Session history */}
-        {selectedMinistry && (
-          <>
-            <SectionHeader title="RECENT SESSIONS" />
-            {history.length === 0 ? (
-              <GlassCard style={{ marginHorizontal: Spacing.md, padding: Spacing.md }}>
-                <Text style={[Typography.body, { color: Colors.textTertiary, textAlign: 'center' }]}>
-                  No sessions yet for this ministry.
-                </Text>
-              </GlassCard>
-            ) : (
-              history.map(session => (
-                <GlassCard
-                  key={session.id}
-                  style={styles.historyRow}
-                  onPress={() => navigation.navigate('SessionDetail', {
-                    sessionId: session.id,
-                    ministryId: session.ministry_id,
-                    date: session.session_date,
-                  })}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[Typography.bodyMedium, { color: Colors.textPrimary }]}>
-                      {new Date(session.session_date + 'T12:00:00').toLocaleDateString('en-US', {
-                        weekday: 'long', month: 'short', day: 'numeric',
-                      })}
-                    </Text>
-                    <Text style={[Typography.caption, { color: Colors.textTertiary }]}>
-                      {session.present_count ?? 0} / {session.total_count ?? 0} present
-                    </Text>
-                  </View>
-                  <View style={[styles.statusPill, {
-                    backgroundColor: session.status === 'committed' ? Colors.successLight : Colors.warningLight,
-                  }]}>
-                    <Text style={[Typography.captionMedium, {
-                      color: session.status === 'committed' ? Colors.success : Colors.warning,
-                    }]}>
-                      {session.status === 'committed' ? '✓ Committed' : '⏳ Draft'}
-                    </Text>
-                  </View>
-                </GlassCard>
-              ))
-            )}
-          </>
-        )}
-
-        <View style={{ height: Spacing.xxl * 2 }} />
+      {/* DATE STRIP */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dateStrip}>
+        {dates.map((d) => {
+          const str = toYYYYMMDD(d);
+          const selected = str === selectedDate;
+          const isToday = str === toYYYYMMDD(today);
+          return (
+            <TouchableOpacity key={str} onPress={() => setSelectedDate(str)}
+              style={[styles.dateChip, selected && styles.dateChipActive]}>
+              <Text style={[styles.dayLabel, selected && styles.dateLabelActive]}>
+                {format(d, 'EEE')}
+              </Text>
+              <Text style={[styles.dateNum, selected && styles.dateLabelActive]}>
+                {format(d, 'd')}
+              </Text>
+              {isToday && <View style={[styles.todayDot, selected && styles.todayDotActive]} />}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
-    </ScreenWrapper>
+
+      {/* MINISTRY SELECTOR */}
+      <MinistrySelector
+        ministries={ministries}
+        selectedId={selectedMinistryId}
+        onChange={setSelectedMinistryId}
+      />
+
+      {/* SESSION CARD */}
+      {selectedMinistry && (
+        <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+          <AppCard elevated>
+            <Text style={styles.sessionMinistry}>{selectedMinistry.name}</Text>
+            <Text style={styles.sessionDate}>{format(new Date(selectedDate + 'T00:00:00'), 'EEEE, MMMM d, yyyy')}</Text>
+            {pointsForDay > 0 && (
+              <View style={styles.pointsRow}>
+                <Text style={styles.pointsLabel}>Points per student:</Text>
+                <Text style={styles.pointsValue}>+{pointsForDay} pts</Text>
+              </View>
+            )}
+            <PrimaryButton
+              label={pointsForDay === 0 ? 'Not an active day' : 'Start Session'}
+              onPress={handleStartSession}
+              loading={loading}
+              disabled={pointsForDay === 0}
+              style={{ marginTop: 16 }}
+            />
+          </AppCard>
+        </View>
+      )}
+
+      {/* RECENT SESSIONS */}
+      <SectionHeader title="Recent Sessions" count={recentSessions.length}
+        onSeeAll={() => navigation.push('AttendanceHistory', {})} />
+      {recentSessions.map((session) => (
+        <AttendanceSessionCard key={session.id} session={session}
+          onPress={() => navigation.push('SessionDetail', {
+            sessionId: session.id,
+            ministryName: session.ministry_name ?? '',
+            sessionDate: session.session_date,
+          })} />
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: Spacing.xxl },
-  dateCard: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.md, padding: Spacing.sm,
-  },
-  dateRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  dateBtn: { minWidth: 44 },
-  ctaRow: {
-    flexDirection: 'row', paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  historyRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.md, marginBottom: Spacing.xs,
-    padding: Spacing.md,
-  },
-  statusPill: {
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16 },
+  title: { fontSize: Typography.xxl, fontWeight: Typography.bold, color: Colors.dark },
+  historyIcon: { fontSize: 24 },
+  dateStrip: { paddingHorizontal: 16, gap: 8, paddingVertical: 8 },
+  dateChip: { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, minWidth: 52 },
+  dateChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  dayLabel: { fontSize: Typography.xs, color: Colors.light, marginBottom: 4 },
+  dateNum: { fontSize: Typography.md, fontWeight: Typography.semiBold, color: Colors.dark },
+  dateLabelActive: { color: Colors.white },
+  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.primary, marginTop: 4 },
+  todayDotActive: { backgroundColor: Colors.white },
+  sessionMinistry: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.dark, marginBottom: 4 },
+  sessionDate: { fontSize: Typography.sm, color: Colors.mid, marginBottom: 12 },
+  pointsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.primaryLight, borderRadius: 8, padding: 12 },
+  pointsLabel: { fontSize: Typography.sm, color: Colors.mid },
+  pointsValue: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.primary },
 });

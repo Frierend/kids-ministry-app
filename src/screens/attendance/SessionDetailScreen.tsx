@@ -1,251 +1,154 @@
-// src/screens/attendance/SessionDetailScreen.tsx
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AttendanceStackParamList, SessionStudent } from '../../types';
+import { AttendanceCheckbox } from '../../components/molecules/AttendanceCheckbox';
+import { PrimaryButton } from '../../components/atoms/PrimaryButton';
+import { ConfirmationDialog } from '../../components/organisms/ConfirmationDialog';
+import { Snackbar } from '../../components/organisms/Snackbar';
+import { attendanceService } from '../../services/AttendanceService';
+import { Colors, Typography, Layout, Spacing } from '../../constants';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View, Text, FlatList, StyleSheet, Alert, ActivityIndicator,
-} from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { ScreenWrapper, StackHeader } from '../../components/navigation/ScreenWrapper';
-import { PrimaryButton, SectionHeader } from '../../components/atomic';
-import { AttendanceCheckbox } from '../../components/domain';
-import { GlassCard } from '../../components/atomic/GlassCard';
-import { Colors, Typography, Spacing, Layout } from '../../theme';
-import { useOrCreateSession } from '../../hooks/useAttendance';
-import { useMarkAttendance, useCommitSession } from '../../hooks/useAttendance';
-import type { AttendanceStackParamList, AttendanceRecord } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
+type Props = NativeStackScreenProps<AttendanceStackParamList, 'SessionDetail'>;
 
-interface Props {
-  navigation: NativeStackNavigationProp<AttendanceStackParamList, 'SessionDetail'>;
-  route: RouteProp<AttendanceStackParamList, 'SessionDetail'>;
-}
+export function SessionDetailScreen({ route, navigation }: Props) {
+  const { sessionId, ministryName, sessionDate } = route.params;
+  const insets = useSafeAreaInsets();
+  const [students, setStudents] = useState<SessionStudent[]>([]);
+  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({ visible: false, message: '', type: 'success' });
+  const [isCommitted, setIsCommitted] = useState(false);
 
-export default function SessionDetailScreen({ navigation, route }: Props) {
-  const { ministryId, date } = route.params;
-  const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, 'present' | 'absent'>>({});
+  const load = useCallback(async () => {
+    const s = await attendanceService.getSessionStudents(sessionId);
+    setStudents(s);
+  }, [sessionId]);
 
-  const { data: session, isLoading, refetch } = useOrCreateSession(ministryId, date);
-  const markMutation = useMarkAttendance();
-  const commitMutation = useCommitSession();
+  useEffect(() => { load(); }, [load]);
 
-  const isCommitted = session?.status === 'committed';
-
-  const handleToggle = useCallback(async (studentId: string, newStatus: 'present' | 'absent') => {
-    if (isCommitted) return;
+  const handleToggle = async (studentId: number, present: boolean) => {
     // Optimistic update
-    setOptimisticStatuses(prev => ({ ...prev, [studentId]: newStatus }));
-    Haptics.impactAsync(newStatus === 'present'
-      ? Haptics.ImpactFeedbackStyle.Medium
-      : Haptics.ImpactFeedbackStyle.Light
+    setStudents((prev) =>
+      prev.map((s) => s.id === studentId ? { ...s, is_present: present } : s)
     );
-    try {
-      await markMutation.mutateAsync({ sessionId: session!.id, studentId, status: newStatus });
-    } catch (e) {
-      // Revert optimistic on error
-      setOptimisticStatuses(prev => {
-        const copy = { ...prev };
-        delete copy[studentId];
-        return copy;
-      });
+    if (present) {
+      await attendanceService.markPresent(sessionId, studentId);
+    } else {
+      await attendanceService.markAbsent(sessionId, studentId);
     }
-    await refetch();
-  }, [session, isCommitted, markMutation, refetch]);
-
-  const handleCommit = async () => {
-    if (!session) return;
-    const presentCount = mergedRecords.filter(r => r.status === 'present').length;
-    Alert.alert(
-      'Commit Session',
-      `Mark ${presentCount} students present and award points?\n\nThis cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Commit & Award Points',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const result = await commitMutation.mutateAsync(session.id);
-              Alert.alert(
-                '✅ Session Committed',
-                `${result.presentCount} students marked present.\n${result.pointsAwarded} points awarded total.`
-              );
-              await refetch();
-            } catch (e: any) {
-              Alert.alert('Error', e.message ?? 'Failed to commit session');
-            }
-          },
-        },
-      ]
-    );
   };
 
-  // Merge server records with optimistic updates
-  const mergedRecords: AttendanceRecord[] = useMemo(() => {
-    if (!session?.records) return [];
-    return session.records.map(r => ({
-      ...r,
-      status: optimisticStatuses[r.student_id] ?? r.status,
-    }));
-  }, [session?.records, optimisticStatuses]);
+  const handleMarkAll = async (present: boolean) => {
+    const records = students.map((s) => ({ student_id: s.id, is_present: present }));
+    setStudents((prev) => prev.map((s) => ({ ...s, is_present: present })));
+    await attendanceService.markBulk(sessionId, records);
+  };
 
-  const presentCount = mergedRecords.filter(r => r.status === 'present').length;
-  const totalCount = mergedRecords.length;
-  const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const result = await attendanceService.commitSession(sessionId);
+      setIsCommitted(true);
+      navigation.replace('SessionSummary', { result });
+    } catch (e: any) {
+      setSnackbar({ visible: true, message: e.message ?? 'Save failed', type: 'error' });
+    } finally {
+      setSaving(false);
+      setShowConfirm(false);
+    }
+  };
 
-  if (isLoading || !session) {
-    return (
-      <ScreenWrapper>
-        <StackHeader title="Loading…" onBack={() => navigation.goBack()} />
-        <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} />
-      </ScreenWrapper>
-    );
-  }
+  const presentCount = students.filter((s) => s.is_present).length;
+  const filteredStudents = search.trim()
+    ? students.filter((s) =>
+        `${s.first_name} ${s.last_name} ${s.nickname ?? ''}`.toLowerCase().includes(search.toLowerCase())
+      )
+    : students;
 
   return (
-    <ScreenWrapper>
-      <StackHeader
-        title={session.ministry?.name ?? 'Attendance'}
-        subtitle={formattedDate}
-        onBack={() => navigation.goBack()}
-      />
-
-      {/* Summary bar */}
-      <GlassCard style={styles.summaryBar}>
-        <View style={styles.summaryLeft}>
-          <Text style={[Typography.pointsMedium, { color: Colors.primary }]}>{presentCount}</Text>
-          <Text style={[Typography.caption, { color: Colors.textTertiary }]}>present</Text>
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{ministryName}</Text>
+          <Text style={styles.headerSub}>{sessionDate}</Text>
         </View>
-        <View style={styles.progressCol}>
-          <View style={styles.progressOuter}>
-            <View style={[
-              styles.progressInner,
-              { width: totalCount > 0 ? `${(presentCount / totalCount) * 100}%` as any : '0%' },
-            ]} />
-          </View>
-          <Text style={[Typography.caption, { color: Colors.textTertiary }]}>
-            {totalCount - presentCount} absent
-          </Text>
-        </View>
-        <View style={styles.summaryRight}>
-          <Text style={[Typography.pointsMedium, { color: Colors.textTertiary }]}>{totalCount - presentCount}</Text>
-          <Text style={[Typography.caption, { color: Colors.textTertiary }]}>absent</Text>
-        </View>
-      </GlassCard>
-
-      {/* Select all / none */}
-      {!isCommitted && (
-        <View style={styles.bulkRow}>
-          <PrimaryButton
-            label="All Present"
-            variant="secondary"
-            size="sm"
-            onPress={async () => {
-              for (const r of mergedRecords) {
-                if (r.status !== 'present') {
-                  await handleToggle(r.student_id, 'present');
-                }
-              }
-            }}
-          />
-          <PrimaryButton
-            label="All Absent"
-            variant="ghost"
-            size="sm"
-            onPress={async () => {
-              for (const r of mergedRecords) {
-                if (r.status !== 'absent') {
-                  await handleToggle(r.student_id, 'absent');
-                }
-              }
-            }}
-          />
-        </View>
-      )}
-
-      {/* Student list */}
-      <FlatList
-        data={mergedRecords}
-        keyExtractor={item => item.student_id}
-        getItemLayout={(_, index) => ({
-          length: Layout.studentRowHeight,
-          offset: Layout.studentRowHeight * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-          <AttendanceCheckbox
-            record={item}
-            onToggle={handleToggle}
-            disabled={isCommitted}
-          />
+        {!isCommitted && (
+          <PrimaryButton label="Save" onPress={() => setShowConfirm(true)}
+            size="sm" style={{ paddingHorizontal: 20 }} />
         )}
-        contentContainerStyle={styles.list}
+      </View>
+
+      {/* STATS BAR */}
+      <View style={styles.statsBar}>
+        <Text style={styles.statsText}>Present: <Text style={styles.statsNum}>{presentCount}</Text> / {students.length}</Text>
+        <Text style={styles.statsText}>{students.length - presentCount} absent</Text>
+      </View>
+
+      {/* SEARCH */}
+      <View style={styles.searchBox}>
+        <TextInput style={styles.searchInput} value={search} onChangeText={setSearch}
+          placeholder="Search students..." placeholderTextColor={Colors.light} />
+      </View>
+
+      {/* STUDENT LIST */}
+      <FlatList
+        data={filteredStudents}
+        keyExtractor={(item) => String(item.id)}
+        getItemLayout={(_, index) => ({ length: Layout.rowHeight, offset: Layout.rowHeight * index, index })}
+        renderItem={({ item }) => (
+          <AttendanceCheckbox student={item} onToggle={handleToggle} disabled={isCommitted} />
+        )}
         ListEmptyComponent={
-          <Text style={[Typography.body, { color: Colors.textTertiary, textAlign: 'center', margin: Spacing.xl }]}>
-            No students enrolled in this ministry.
-          </Text>
+          <View style={styles.empty}><Text style={styles.emptyText}>No students found</Text></View>
         }
       />
 
-      {/* Commit button */}
+      {/* BULK ACTIONS */}
       {!isCommitted && (
-        <View style={styles.commitRow}>
-          <PrimaryButton
-            label={commitMutation.isPending ? 'Committing…' : `✓ Commit & Award Points (${presentCount})`}
-            onPress={handleCommit}
-            loading={commitMutation.isPending}
-            disabled={presentCount === 0}
-            size="lg"
-            style={{ flex: 1 }}
-          />
+        <View style={[styles.bulkBar, { paddingBottom: insets.bottom + 8 }]}>
+          <PrimaryButton label="Mark All Present" onPress={() => handleMarkAll(true)}
+            variant="outline" size="sm" style={{ flex: 1 }} />
+          <PrimaryButton label="Clear All" onPress={() => handleMarkAll(false)}
+            variant="ghost" size="sm" style={{ flex: 1 }} />
         </View>
       )}
 
-      {isCommitted && (
-        <View style={styles.committedBanner}>
-          <Text style={[Typography.bodySemiBold, { color: Colors.success }]}>
-            ✅ Session committed — points awarded
-          </Text>
-        </View>
-      )}
-    </ScreenWrapper>
+      <ConfirmationDialog
+        visible={showConfirm}
+        title="Save Attendance?"
+        message={`Award points to ${presentCount} present students?\n${students.length - presentCount} students will be marked absent.`}
+        confirmLabel="Save & Award Points"
+        onConfirm={handleSave}
+        onCancel={() => setShowConfirm(false)}
+        loading={saving}
+      />
+
+      <Snackbar visible={snackbar.visible} message={snackbar.message} type={snackbar.type}
+        onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  summaryBar: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
-    padding: Spacing.md, gap: Spacing.md,
-  },
-  summaryLeft: { alignItems: 'center', minWidth: 44 },
-  summaryRight: { alignItems: 'center', minWidth: 44 },
-  progressCol: { flex: 1, gap: 4 },
-  progressOuter: {
-    height: 8, backgroundColor: Colors.divider,
-    borderRadius: 4, overflow: 'hidden',
-  },
-  progressInner: {
-    height: '100%', borderRadius: 4,
-    backgroundColor: Colors.success,
-  },
-  bulkRow: {
-    flexDirection: 'row', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, marginBottom: Spacing.sm,
-  },
-  list: { paddingHorizontal: Spacing.md, paddingBottom: 120 },
-  commitRow: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', padding: Spacing.md,
-    backgroundColor: Colors.frostedTabBg,
-    borderTopWidth: 1, borderTopColor: Colors.divider,
-  },
-  committedBanner: {
-    padding: Spacing.md,
-    backgroundColor: Colors.successLight,
-    alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: Colors.success + '30',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 12 },
+  backBtn: { padding: 4 },
+  backIcon: { fontSize: 28, color: Colors.primary, fontWeight: Typography.bold },
+  headerInfo: { flex: 1 },
+  headerTitle: { fontSize: Typography.lg, fontWeight: Typography.semiBold, color: Colors.dark },
+  headerSub: { fontSize: Typography.xs, color: Colors.light },
+  statsBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.primaryLight },
+  statsText: { fontSize: Typography.sm, color: Colors.mid },
+  statsNum: { fontWeight: Typography.bold, color: Colors.primary },
+  searchBox: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  searchInput: { backgroundColor: Colors.bg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: Typography.md, color: Colors.dark },
+  empty: { padding: 40, alignItems: 'center' },
+  emptyText: { color: Colors.light, fontSize: Typography.md },
+  bulkBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.border },
 });

@@ -1,124 +1,99 @@
-// src/screens/settings/SettingsHomeScreen.tsx
-
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, Pressable, Alert } from 'react-native';
-import { ScreenWrapper, StackHeader } from '../../components/navigation/ScreenWrapper';
-import { GlassCard } from '../../components/atomic/GlassCard';
-import { Divider, SectionHeader } from '../../components/atomic';
-import { Colors, Typography, Spacing, Radius } from '../../theme';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SettingsStackParamList } from '../../types';
+import { AppCard } from '../../components/atoms/AppCard';
 import { securityService } from '../../services/SecurityService';
-import type { SettingsStackParamList } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Colors, Typography } from '../../constants';
 
-interface Props {
-  navigation: NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
-}
+type Nav = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
 
-export default function SettingsHomeScreen({ navigation }: Props) {
+const ROWS = [
+  { icon: '⛪', label: 'Ministries',       sub: 'Manage ministry classes',         screen: 'Ministries'   as const },
+  { icon: '🔒', label: 'Security',          sub: 'PIN, biometrics & auto-lock',     screen: 'Security'     as const },
+  { icon: '💾', label: 'Backup & Restore',  sub: 'Export or import your database',  screen: 'Backup'       as const },
+  { icon: 'ℹ️', label: 'About',             sub: 'Version info & tech stack',        screen: 'About'        as const },
+];
+
+export function SettingsHomeScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
+  const isFocused = useIsFocused();
   const [teacherName, setTeacherName] = useState('Teacher');
 
   useEffect(() => {
-    securityService.getTeacherName().then(setTeacherName);
-  }, []);
+    if (isFocused) {
+      securityService.getTeacherName().then(setTeacherName);
+    }
+  }, [isFocused]);
 
   return (
-    <ScreenWrapper>
-      <StackHeader title="Settings" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }}
+      contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.title}>Settings</Text>
+      </View>
 
-        {/* Profile */}
-        <SectionHeader title="PROFILE" />
-        <GlassCard style={styles.card}>
-          <SettingsRow
-            icon="👤"
-            label="Teacher Name"
-            value={teacherName}
-            onPress={() => navigation.navigate('SecuritySettings')}
-          />
-        </GlassCard>
+      {/* PROFILE CARD */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+        <AppCard elevated>
+          <View style={styles.profileRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(teacherName[0] ?? 'T').toUpperCase()}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profileName}>{teacherName}</Text>
+              <Text style={styles.profileRole}>Teacher</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Security')}>
+              <Text style={styles.editBtn}>Edit ›</Text>
+            </TouchableOpacity>
+          </View>
+        </AppCard>
+      </View>
 
-        {/* Ministries */}
-        <SectionHeader title="CONTENT" />
-        <GlassCard style={styles.card}>
-          <SettingsRow
-            icon="⛪"
-            label="Ministries"
-            onPress={() => navigation.navigate('Ministries')}
-            showChevron
-          />
-        </GlassCard>
+      {/* SETTINGS LIST */}
+      <View style={{ paddingHorizontal: 16 }}>
+        <AppCard padding={0}>
+          {ROWS.map((row, i) => (
+            <TouchableOpacity key={row.screen}
+              style={[styles.row, i < ROWS.length - 1 && styles.rowDivider]}
+              onPress={() => navigation.navigate(row.screen)}
+              activeOpacity={0.7}>
+              <Text style={styles.rowIcon}>{row.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>{row.label}</Text>
+                <Text style={styles.rowSub}>{row.sub}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </AppCard>
+      </View>
 
-        {/* Security */}
-        <SectionHeader title="SECURITY" />
-        <GlassCard style={styles.card}>
-          <SettingsRow
-            icon="🔒"
-            label="PIN & Biometrics"
-            onPress={() => navigation.navigate('SecuritySettings')}
-            showChevron
-          />
-          <Divider />
-          <SettingsRow
-            icon="⏱"
-            label="Auto-Lock"
-            onPress={() => navigation.navigate('SecuritySettings')}
-            showChevron
-          />
-        </GlassCard>
-
-        {/* Data */}
-        <SectionHeader title="DATA" />
-        <GlassCard style={styles.card}>
-          <SettingsRow
-            icon="💾"
-            label="Backup & Restore"
-            onPress={() => navigation.navigate('BackupRestore')}
-            showChevron
-          />
-        </GlassCard>
-
-        {/* About */}
-        <SectionHeader title="ABOUT" />
-        <GlassCard style={styles.card}>
-          <SettingsRow icon="ℹ️" label="Version" value="1.0.0" />
-          <Divider />
-          <SettingsRow icon="📖" label="About" onPress={() => navigation.navigate('About')} showChevron />
-        </GlassCard>
-
-        <View style={{ height: Spacing.xxl * 2 }} />
-      </ScrollView>
-    </ScreenWrapper>
+      {/* APP VERSION */}
+      <Text style={styles.version}>Kid's Ministry Attendance · v1.0.0</Text>
+    </ScrollView>
   );
-}
-
-function SettingsRow({ icon, label, value, onPress, showChevron }: {
-  icon: string; label: string; value?: string;
-  onPress?: () => void; showChevron?: boolean;
-}) {
-  const inner = (
-    <View style={styles.settingsRow}>
-      <Text style={styles.settingsIcon}>{icon}</Text>
-      <Text style={[Typography.bodyMedium, { color: Colors.textPrimary, flex: 1 }]}>{label}</Text>
-      {value && <Text style={[Typography.body, { color: Colors.textSecondary }]}>{value}</Text>}
-      {showChevron && <Text style={{ color: Colors.textTertiary, fontSize: 18 }}>›</Text>}
-    </View>
-  );
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-        {inner}
-      </Pressable>
-    );
-  }
-  return inner;
 }
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: 0, overflow: 'hidden' },
-  settingsRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.md, paddingVertical: 14,
-    gap: Spacing.sm, minHeight: 52,
-  },
-  settingsIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  header: { paddingHorizontal: 16, paddingBottom: 16 },
+  title: { fontSize: 32, fontWeight: '800', color: Colors.dark },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 24, fontWeight: '700', color: Colors.primary },
+  profileName: { fontSize: Typography.lg, fontWeight: Typography.semiBold, color: Colors.dark },
+  profileRole: { fontSize: Typography.sm, color: Colors.light, marginTop: 2 },
+  editBtn: { color: Colors.primary, fontSize: Typography.sm, fontWeight: Typography.semiBold },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 14 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  rowIcon: { fontSize: 24 },
+  rowLabel: { fontSize: Typography.md, fontWeight: Typography.medium, color: Colors.dark },
+  rowSub: { fontSize: Typography.xs, color: Colors.light, marginTop: 2 },
+  chevron: { fontSize: 22, color: Colors.light },
+  version: { textAlign: 'center', fontSize: Typography.xs, color: Colors.light, marginTop: 24 },
 });

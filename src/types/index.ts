@@ -1,112 +1,236 @@
-// src/types/index.ts
-// All domain types matching the database schema
-
+// ─── STUDENT ──────────────────────────────────────────────────────────────────
 export interface Student {
-  id: string;
+  id: number;
+  uuid: string;
   first_name: string;
   last_name: string;
-  photo_uri?: string | null;
-  date_of_birth?: string | null;
-  notes?: string | null;
+  nickname: string | null;
+  birth_date: string | null;
+  guardian_name: string | null;
+  guardian_contact: string | null;
+  photo_uri: string | null;
   is_archived: boolean;
+  archived_at: string | null;
+  archived_reason: string | null;
   created_at: string;
   updated_at: string;
-  // Computed / joined
-  balance?: number;
-  ministry_names?: string[];
+}
+
+export type CreateStudentInput = {
+  first_name: string;
+  last_name: string;
+  nickname?: string;
+  birth_date?: string;
+  guardian_name?: string;
+  guardian_contact?: string;
+  photo_uri?: string;
+  ministry_ids?: number[];
+};
+
+export type UpdateStudentInput = Partial<Omit<CreateStudentInput, 'ministry_ids'>>;
+
+export interface StudentFilters {
+  searchQuery?: string;
+  ministryId?: number;
+  includeArchived?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AttendanceSummary {
+  total_sessions: number;
+  present_count: number;
+  absent_count: number;
+  attendance_percentage: number;
+  last_attended: string | null;
+  streak: number;
+}
+
+// ─── MINISTRY ─────────────────────────────────────────────────────────────────
+export type DayOfWeek =
+  | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday'
+  | 'saturday' | 'sunday';
+
+export interface PointsConfig {
+  monday?: number;
+  tuesday?: number;
+  wednesday?: number;
+  thursday?: number;
+  friday?: number;
+  saturday: 20;
+  sunday: 50;
 }
 
 export interface Ministry {
-  id: string;
+  id: number;
+  uuid: string;
   name: string;
-  color: string;
-  saturday_points: number;
-  sunday_points: number;
-  is_active: boolean;
-  created_at: string;
-  // Computed
+  description: string | null;
+  active_days: DayOfWeek[];
+  points_config: PointsConfig;
+  is_archived: boolean;
   student_count?: number;
+  created_at: string;
+  updated_at: string;
 }
+
+export type CreateMinistryInput = {
+  name: string;
+  description?: string;
+  active_days: DayOfWeek[];
+  points_config: Partial<PointsConfig>;
+};
 
 export interface Enrollment {
-  id: string;
-  student_id: string;
-  ministry_id: string;
+  id: number;
+  student_id: number;
+  ministry_id: number;
   enrolled_at: string;
-  unenrolled_at?: string | null;
-  // Joined
-  ministry?: Ministry;
-  student?: Student;
+  unenrolled_at: string | null;
 }
 
+// ─── ATTENDANCE ───────────────────────────────────────────────────────────────
 export type SessionStatus = 'draft' | 'committed';
-export type AttendanceStatus = 'present' | 'absent';
 
 export interface AttendanceSession {
-  id: string;
-  ministry_id: string;
+  id: number;
+  uuid: string;
+  ministry_id: number;
+  ministry_name?: string;
   session_date: string;
+  day_of_week: DayOfWeek;
+  points_awarded: number;
   status: SessionStatus;
+  committed_at: string | null;
   created_at: string;
-  committed_at?: string | null;
-  // Joined
-  ministry?: Ministry;
-  records?: AttendanceRecord[];
   present_count?: number;
   total_count?: number;
 }
 
 export interface AttendanceRecord {
-  id: string;
-  session_id: string;
-  student_id: string;
-  status: AttendanceStatus;
-  marked_at: string;
-  // Joined
-  student?: Student;
+  id: number;
+  session_id: number;
+  student_id: number;
+  is_present: boolean;
+  marked_at: string | null;
+  note: string | null;
 }
 
-export type TransactionType = 'attendance' | 'activity' | 'bonus' | 'redemption' | 'adjustment';
+export interface SessionStudent extends Student {
+  is_present: boolean;
+  marked_at: string | null;
+  note: string | null;
+}
+
+export interface BulkAttendanceRecord {
+  student_id: number;
+  is_present: boolean;
+  note?: string;
+}
+
+export interface CommitResult {
+  session: AttendanceSession;
+  awarded_count: number;
+  total_students: number;
+  points_per_student: number;
+  total_points_awarded: number;
+}
+
+export interface CalendarDay {
+  date: string;
+  status: 'present' | 'absent' | 'none';
+  sessions: { ministry_name: string; is_present: boolean }[];
+}
+
+// ─── TRANSACTIONS ─────────────────────────────────────────────────────────────
+export type TransactionType =
+  | 'attendance' | 'activity' | 'market_deduction' | 'manual_adjustment';
 
 export interface PointTransaction {
-  id: string;
-  student_id: string;
-  points: number;
+  id: number;
+  uuid: string;
+  student_id: number;
   type: TransactionType;
-  description: string;
-  session_id?: string | null;
-  item_id?: string | null;
+  points: number;
+  reason: string;
+  reference_id: string | null;
+  reference_type: 'session' | 'market_item' | null;
+  awarded_by: string | null;
   created_at: string;
-  created_by?: string | null;
+  running_balance?: number;
 }
 
+export interface PointBreakdown {
+  attendance: number;
+  activity: number;
+  market_deductions: number;
+  manual_adjustments: number;
+  total: number;
+}
+
+export interface TxPage {
+  transactions: PointTransaction[];
+  hasMore: boolean;
+  nextPage: number;
+  total: number;
+}
+
+export interface TxFilters {
+  type?: TransactionType;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ─── MARKET ───────────────────────────────────────────────────────────────────
 export interface MarketItem {
-  id: string;
+  id: number;
+  uuid: string;
   name: string;
-  description?: string | null;
+  description: string | null;
   point_cost: number;
-  quantity: number; // -1 = unlimited
-  is_available: boolean;
-  image_uri?: string | null;
+  stock: number;
+  photo_uri: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
+export type CreateMarketItemInput = {
+  name: string;
+  description?: string;
+  point_cost: number;
+  stock?: number;
+  photo_uri?: string;
+};
+
+// ─── SECURITY ─────────────────────────────────────────────────────────────────
+export interface SecurityState {
+  is_locked: boolean;
+  biometrics_enabled: boolean;
+  has_pin: boolean;
+  auto_lock_minutes: number;
+}
+
+export type BiometricResult = { success: true } | { success: false; error: string };
+
+// ─── APP SETTINGS ─────────────────────────────────────────────────────────────
 export interface AppSettings {
+  teacher_name: string;
   auto_lock_minutes: number;
   biometrics_enabled: boolean;
-  teacher_name: string;
+  theme: 'light' | 'dark';
   app_version: string;
-  pin_hash?: string;
 }
 
-// ── Navigation param types ──────────────────────────────────
+// ─── NAVIGATION PARAM LISTS ───────────────────────────────────────────────────
 export type RootStackParamList = {
   Lock: undefined;
   Main: undefined;
   Setup: undefined;
 };
 
-export type MainTabParamList = {
+export type TabParamList = {
   Home: undefined;
   Attendance: undefined;
   Students: undefined;
@@ -116,53 +240,34 @@ export type MainTabParamList = {
 
 export type AttendanceStackParamList = {
   AttendanceHome: undefined;
-  SessionDetail: { sessionId: string; ministryId: string; date: string };
-  SessionHistory: { ministryId: string };
+  SessionDetail: { sessionId: number; ministryName: string; sessionDate: string };
+  AttendanceHistory: { ministryId?: number; studentId?: number };
+  SessionSummary: { result: CommitResult };
 };
 
 export type StudentsStackParamList = {
   StudentList: undefined;
-  StudentDetail: { studentId: string };
-  StudentAdd: undefined;
-  StudentEdit: { studentId: string };
-  PointsLedger: { studentId: string; studentName: string };
-  AwardPoints: { studentId: string; studentName: string };
-  EnrollStudent: { studentId: string };
+  StudentDetail: { studentId: number };
+  AddStudent: undefined;
+  EditStudent: { studentId: number };
+  PointsLedger: { studentId: number; studentName: string };
+  AwardPoints: { studentId: number; studentName: string };
+  ArchiveStudent: { studentId: number; studentName: string };
 };
 
 export type MarketStackParamList = {
   MarketHome: undefined;
-  ItemDetail: { itemId: string };
-  ItemAdd: undefined;
-  ItemEdit: { itemId: string };
-  Checkout: { studentId: string; itemId: string };
+  RedeemConfirm: { studentId: number; itemId: number };
+  MarketHistory: { studentId?: number };
+  ManageItems: undefined;
+  AddEditItem: { itemId?: number };
 };
 
 export type SettingsStackParamList = {
   SettingsHome: undefined;
   Ministries: undefined;
-  MinistryDetail: { ministryId: string };
-  MinistryAdd: undefined;
-  SecuritySettings: undefined;
-  PinChange: undefined;
-  BackupRestore: undefined;
+  MinistryDetail: { ministryId?: number };
+  Security: undefined;
+  Backup: undefined;
   About: undefined;
 };
-
-// ── Utility types ──────────────────────────────────────────
-export type DayOfWeek = 'saturday' | 'sunday' | 'weekday';
-
-export function getDayOfWeek(dateStr: string): DayOfWeek {
-  const d = new Date(dateStr + 'T12:00:00');
-  const day = d.getDay();
-  if (day === 6) return 'saturday';
-  if (day === 0) return 'sunday';
-  return 'weekday';
-}
-
-export function getPointsForDay(ministry: Ministry, date: string): number {
-  const day = getDayOfWeek(date);
-  if (day === 'saturday') return ministry.saturday_points;
-  if (day === 'sunday') return ministry.sunday_points;
-  return ministry.saturday_points; // weekday defaults to saturday rate
-}

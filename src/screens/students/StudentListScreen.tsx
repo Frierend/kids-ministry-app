@@ -1,121 +1,140 @@
-// src/screens/students/StudentListScreen.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, SectionList, StyleSheet, TouchableOpacity, RefreshControl, ActionSheetIOS, Platform, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { StudentsStackParamList, Student, Ministry } from '../../types';
+import { StudentRow } from '../../components/molecules/StudentRow';
+import { MinistrySelector } from '../../components/molecules/MinistrySelector';
+import { SearchBar } from '../../components/atoms/SearchBar';
+import { EmptyState } from '../../components/atoms/EmptyState';
+import { FAB } from '../../components/organisms/FAB';
+import { Snackbar } from '../../components/organisms/Snackbar';
+import { studentService } from '../../services/StudentService';
+import { ministryService } from '../../services/MinistryService';
+import { Colors, Typography, Spacing } from '../../constants';
 
-import React, { useState, useMemo, useCallback } from 'react';
-import {
-  View, Text, FlatList, TextInput, StyleSheet,
-} from 'react-native';
-import { ScreenWrapper, StackHeader, FAB } from '../../components/navigation/ScreenWrapper';
-import { StudentRow } from '../../components/domain';
-import { SkeletonRow, EmptyState, SectionHeader } from '../../components/atomic';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../theme';
-import { useStudents } from '../../hooks/useStudents';
-import type { StudentsStackParamList } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+type Nav = NativeStackNavigationProp<StudentsStackParamList, 'StudentList'>;
 
-interface Props {
-  navigation: NativeStackNavigationProp<StudentsStackParamList, 'StudentList'>;
-}
-
-export default function StudentListScreen({ navigation }: Props) {
-  const [query, setQuery] = useState('');
+export function StudentListScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [search, setSearch] = useState('');
+  const [ministryId, setMinistryId] = useState<number | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
-  const { data: students = [], isLoading } = useStudents(showArchived);
+  const load = useCallback(async () => {
+    const [s, m] = await Promise.all([
+      studentService.getAll({ searchQuery: search, ministryId: ministryId ?? undefined, includeArchived: showArchived }),
+      ministryService.getAll(),
+    ]);
+    setStudents(s);
+    setMinistries(m);
+  }, [search, ministryId, showArchived]);
 
-  const filtered = useMemo(() => {
-    if (!query) return students;
-    const q = query.toLowerCase();
-    return students.filter(s =>
-      s.first_name.toLowerCase().includes(q) ||
-      s.last_name.toLowerCase().includes(q)
-    );
-  }, [students, query]);
+  useEffect(() => { load(); }, [load]);
 
-  const renderItem = useCallback(({ item }: any) => (
-    <StudentRow
-      student={item}
-      onPress={() => navigation.navigate('StudentDetail', { studentId: item.id })}
-    />
-  ), [navigation]);
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  const handleLongPress = (student: Student) => {
+    const options = ['View Profile', 'Award Points', 'Archive Student', 'Cancel'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 3, destructiveButtonIndex: 2 },
+        (idx) => handleAction(idx, student)
+      );
+    } else {
+      Alert.alert(student.first_name + ' ' + student.last_name, 'Select action', [
+        { text: 'View Profile', onPress: () => navigation.push('StudentDetail', { studentId: student.id }) },
+        { text: 'Award Points', onPress: () => navigation.push('AwardPoints', { studentId: student.id, studentName: student.first_name }) },
+        { text: 'Archive', style: 'destructive', onPress: () => navigation.push('ArchiveStudent', { studentId: student.id, studentName: student.first_name + ' ' + student.last_name }) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const handleAction = (idx: number, student: Student) => {
+    if (idx === 0) navigation.push('StudentDetail', { studentId: student.id });
+    if (idx === 1) navigation.push('AwardPoints', { studentId: student.id, studentName: student.first_name });
+    if (idx === 2) navigation.push('ArchiveStudent', { studentId: student.id, studentName: student.first_name + ' ' + student.last_name });
+  };
+
+  // Group by first letter
+  const grouped: { title: string; data: Student[] }[] = [];
+  const letterMap: Record<string, Student[]> = {};
+  for (const s of students) {
+    const letter = s.last_name[0]?.toUpperCase() ?? '#';
+    if (!letterMap[letter]) letterMap[letter] = [];
+    letterMap[letter].push(s);
+  }
+  for (const letter of Object.keys(letterMap).sort()) {
+    grouped.push({ title: letter, data: letterMap[letter] });
+  }
+
+  // All ministries + "All" option
+  const allMinistries = [{ id: null as any, name: 'All', student_count: students.length, uuid: '', description: null, active_days: [], points_config: { saturday: 20 as const, sunday: 50 as const }, is_archived: false, created_at: '', updated_at: '' }, ...ministries];
 
   return (
-    <ScreenWrapper>
-      <StackHeader
-        title="Students"
-        subtitle={`${students.length} enrolled`}
-        rightAction={{
-          icon: <Text style={{ fontSize: 18 }}>{showArchived ? '👁' : '👁‍🗨'}</Text>,
-          onPress: () => setShowArchived(v => !v),
-        }}
-      />
-
-      {/* Search bar */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search students…"
-            placeholderTextColor={Colors.textTertiary}
-            style={[Typography.body, styles.searchInput]}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {query.length > 0 && (
-            <Text
-              onPress={() => setQuery('')}
-              style={styles.clearBtn}
-            >✕</Text>
-          )}
-        </View>
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.title}>Students</Text>
+        <TouchableOpacity onPress={() => setShowArchived((v) => !v)}>
+          <Text style={[styles.archiveToggle, showArchived && styles.archiveToggleActive]}>
+            {showArchived ? '🗃 Archived' : '🗃'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <>{[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}</>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          getItemLayout={(_, index) => ({
-            length: Layout.studentRowHeight,
-            offset: Layout.studentRowHeight * index,
-            index,
-          })}
-          contentContainerStyle={filtered.length === 0 ? { flex: 1 } : styles.list}
-          ListEmptyComponent={
-            <EmptyState
-              icon={<Text style={{ fontSize: 40 }}>👦</Text>}
-              title={query ? 'No results' : 'No students yet'}
-              message={query ? `No students match "${query}"` : 'Tap + to add your first student.'}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      {/* SEARCH */}
+      <View style={styles.searchRow}>
+        <SearchBar value={search} onChangeText={setSearch} />
+      </View>
 
-      <FAB
-        onPress={() => navigation.navigate('StudentAdd')}
-        label="Add Student"
-        icon="+"
+      {/* MINISTRY FILTER */}
+      <MinistrySelector ministries={allMinistries} selectedId={ministryId} onChange={(id) => setMinistryId(id === null ? null : id)} />
+
+      {/* STUDENT LIST */}
+      <SectionList
+        sections={grouped}
+        keyExtractor={(item) => String(item.id)}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.sectionHeader}><Text style={styles.sectionLabel}>{title}</Text></View>
+        )}
+        renderItem={({ item }) => (
+          <StudentRow
+            student={item}
+            onPress={() => navigation.push('StudentDetail', { studentId: item.id })}
+            onLongPress={() => handleLongPress(item)}
+          />
+        )}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={
+          <EmptyState icon="👥" title="No students found"
+            subtitle={search ? 'Try a different search term' : 'Add your first student with the + button'}
+            action={{ label: 'Add Student', onPress: () => navigation.push('AddStudent') }} />
+        }
       />
-    </ScreenWrapper>
+
+      <FAB onPress={() => navigation.push('AddStudent')} />
+
+      <Snackbar visible={snackbar.visible} message={snackbar.message} type="success"
+        onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  searchRow: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.inputBg,
-    borderRadius: Radius.lg, borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    paddingHorizontal: Spacing.md, height: 44,
-    gap: Spacing.xs,
-  },
-  searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, color: Colors.textPrimary },
-  clearBtn: { color: Colors.textTertiary, fontSize: 16, padding: 4 },
-  list: { paddingBottom: 100 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  title: { fontSize: Typography.xxl, fontWeight: Typography.bold, color: Colors.dark },
+  archiveToggle: { fontSize: 20, color: Colors.light },
+  archiveToggleActive: { color: Colors.primary },
+  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: Colors.white },
+  sectionHeader: { backgroundColor: Colors.bg, paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sectionLabel: { fontSize: Typography.xs, fontWeight: Typography.bold, color: Colors.light, textTransform: 'uppercase', letterSpacing: 1 },
 });

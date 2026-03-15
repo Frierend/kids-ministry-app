@@ -1,171 +1,230 @@
-// src/services/SecurityService.ts
-// PIN hash (SHA-256 + device salt), biometrics, auto-lock
-
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { getDatabase } from '../database/schema';
+import CryptoJS from 'crypto-js';
+import { getDatabase } from '../database/client';
+import { BiometricResult } from '../types';
 
-const SALT_KEY = 'km_device_salt';
-const LAST_ACTIVE_KEY = 'km_last_active';
-const LOCKED_KEY = 'km_is_locked';
+const KEYS = {
+  salt:       'app_salt_v1',
+  lastActive: 'last_active_at',
+  failCount:  'pin_fail_count',
+  failTime:   'pin_fail_time',
+};
 
-async function sha256(message: string): Promise<string> {
-  // React Native doesn't have native crypto.subtle, use a pure-JS approach
-  // In production, use expo-crypto
-  const { Crypto } = await import('expo-crypto');
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    message
-  );
-  return digest;
-}
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_SECONDS = 30;
+const HARD_LOCKOUT_ATTEMPTS = 10;
 
 class SecurityService {
-  // ── Salt & PIN ───────────────────────────────────────────
+  // ── PIN SETUP ──────────────────────────────────────────────────────────────
 
-  async ensureSalt(): Promise<string> {
-    let salt = await SecureStore.getItemAsync(SALT_KEY);
-    if (!salt) {
-      // Generate device salt on first launch
-      salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      await SecureStore.setItemAsync(SALT_KEY, salt);
-    }
-    return salt;
-  }
-
-  async hashPin(pin: string): Promise<string> {
-    const salt = await this.ensureSalt();
-    return sha256(salt + pin + salt);
-  }
-
-  async isPinSet(): Promise<boolean> {
+  async hasPin(): Promise<boolean> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = 'pin_hash'`
+      "SELECT value FROM app_settings WHERE key = 'pin_hash'"
     );
-    return !!(row?.value);
+    return !!row?.value;
   }
 
-  async setPin(newPin: string): Promise<void> {
-    const hash = await this.hashPin(newPin);
+  async setupPin(pin: string): Promise<void> {
+    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      throw new Error('PIN must be exactly 4 digits');
+    }
+
+    let salt = await SecureStore.getItemAsync(KEYS.salt);
+    if (!salt) {
+      salt = CryptoJS.lib.WordArray.random(32).toString();
+      await SecureStore.setItemAsync(KEYS.salt, salt);
+    }
+
+    const hash = CryptoJS.SHA256(pin + salt).toString();
+    const now = new Date().toISOString();
     const db = await getDatabase();
+
     await db.runAsync(
-      `INSERT INTO app_settings (key, value) VALUES ('pin_hash', ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
-      [hash]
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+       VALUES ('pin_hash', ?, ?)`,
+      [JSON.stringify(hash), now]
     );
   }
 
   async verifyPin(pin: string): Promise<boolean> {
+    // Check for hard lockout
+    const fails = parseInt(await SecureStore.getItemAsync(KEYS.failCount) ?? '0', 10);
+    if (fails >= HARD_LOCKOUT_ATTEMPTS) return false;
+
+    // Check soft lockout
+    const lockoutExpiry = await this.getLockoutExpiry();
+    if (lockoutExpiry && Date.now() < lockoutExpiry) return false;
+
     const db = await getDatabase();
-    const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = 'pin_hash'`
+    const saltStr = await SecureStore.getItemAsync(KEYS.salt);
+    if (!saltStr) return false;
+
+    const hashRow = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'pin_hash'"
     );
-    if (!row?.value) return false;
-    const hash = await this.hashPin(pin);
-    return hash === row.value;
+    if (!hashRow) return false;
+
+    const storedHash = JSON.parse(hashRow.value);
+    const inputHash = CryptoJS.SHA256(pin + saltStr).toString();
+    const isValid = storedHash === inputHash;
+
+    if (isValid) {
+      await SecureStore.setItemAsync(KEYS.failCount, '0');
+      await SecureStore.deleteItemAsync(KEYS.failTime);
+      await this.recordActivity();
+    } else {
+      const newFails = fails + 1;
+      await SecureStore.setItemAsync(KEYS.failCount, String(newFails));
+      if (newFails % MAX_ATTEMPTS === 0 && newFails < HARD_LOCKOUT_ATTEMPTS) {
+        // Soft lockout
+        const expiry = Date.now() + LOCKOUT_SECONDS * 1000;
+        await SecureStore.setItemAsync(KEYS.failTime, String(expiry));
+      }
+    }
+
+    return isValid;
   }
 
-  // ── Lock State ───────────────────────────────────────────
-
-  async lock(): Promise<void> {
-    await SecureStore.setItemAsync(LOCKED_KEY, '1');
+  async changePin(oldPin: string, newPin: string): Promise<void> {
+    const valid = await this.verifyPin(oldPin);
+    if (!valid) throw new Error('Current PIN is incorrect');
+    await this.setupPin(newPin);
   }
 
-  async unlock(): Promise<void> {
-    await SecureStore.setItemAsync(LOCKED_KEY, '0');
-    await this.touchActivity();
+  async getFailCount(): Promise<number> {
+    return parseInt(await SecureStore.getItemAsync(KEYS.failCount) ?? '0', 10);
   }
 
-  async isLocked(): Promise<boolean> {
-    // Check explicit lock flag
-    const locked = await SecureStore.getItemAsync(LOCKED_KEY);
-    if (locked === '1') return true;
-
-    // Check auto-lock timeout
-    const autoLockMinutes = await this.getAutoLockMinutes();
-    if (autoLockMinutes === 0) return false; // 'Never'
-
-    const lastActive = await SecureStore.getItemAsync(LAST_ACTIVE_KEY);
-    if (!lastActive) return true; // First launch
-
-    const elapsed = (Date.now() - parseInt(lastActive, 10)) / 1000 / 60;
-    return elapsed > autoLockMinutes;
+  async getLockoutExpiry(): Promise<number | null> {
+    const val = await SecureStore.getItemAsync(KEYS.failTime);
+    return val ? parseInt(val, 10) : null;
   }
 
-  async touchActivity(): Promise<void> {
-    // Debounced — only write every 30 seconds
-    const lastActive = await SecureStore.getItemAsync(LAST_ACTIVE_KEY);
-    if (lastActive && Date.now() - parseInt(lastActive, 10) < 30_000) return;
-    await SecureStore.setItemAsync(LAST_ACTIVE_KEY, Date.now().toString());
+  async isHardLocked(): Promise<boolean> {
+    const fails = await this.getFailCount();
+    return fails >= HARD_LOCKOUT_ATTEMPTS;
   }
 
-  // ── Biometrics ───────────────────────────────────────────
+  // ── BIOMETRIC ─────────────────────────────────────────────────────────────
 
-  async isBiometricsAvailable(): Promise<boolean> {
+  async isBiometricAvailable(): Promise<boolean> {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    if (!hasHardware) return false;
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    return isEnrolled;
+    return hasHardware && isEnrolled;
   }
 
-  async isBiometricsEnabled(): Promise<boolean> {
+  async isBiometricEnabled(): Promise<boolean> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = 'biometrics_enabled'`
+      "SELECT value FROM app_settings WHERE key = 'biometrics_enabled'"
     );
     return row?.value === 'true';
   }
 
-  async setBiometricsEnabled(enabled: boolean): Promise<void> {
+  async setBiometricEnabled(enabled: boolean): Promise<void> {
     const db = await getDatabase();
+    const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE app_settings SET value = ?, updated_at = datetime('now') WHERE key = 'biometrics_enabled'`,
-      [enabled ? 'true' : 'false']
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('biometrics_enabled', ?, ?)`,
+      [String(enabled), now]
     );
   }
 
-  async authenticateWithBiometrics(): Promise<boolean> {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Verify your identity',
-      fallbackLabel: 'Use PIN',
-      disableDeviceFallback: false,
-    });
-    return result.success;
+  async biometricAuth(): Promise<BiometricResult> {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock Kid's Ministry App",
+        cancelLabel: 'Use PIN',
+        disableDeviceFallback: true,
+      });
+      if (result.success) {
+        await this.recordActivity();
+        return { success: true };
+      }
+      return { success: false, error: result.error ?? 'Authentication failed' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 
-  // ── Settings ─────────────────────────────────────────────
+  // ── AUTO-LOCK ─────────────────────────────────────────────────────────────
+
+  async recordActivity(): Promise<void> {
+    await SecureStore.setItemAsync(KEYS.lastActive, String(Date.now()));
+  }
+
+  async isLocked(): Promise<boolean> {
+    const hasPin = await this.hasPin();
+    if (!hasPin) return false;
+
+    const lastActive = await SecureStore.getItemAsync(KEYS.lastActive);
+    if (!lastActive) return true; // Never logged in = locked
+
+    const lockMinutes = await this.getAutoLockMinutes();
+    if (lockMinutes === 0) return false; // Never lock
+
+    const elapsed = Date.now() - parseInt(lastActive, 10);
+    return elapsed > lockMinutes * 60 * 1000;
+  }
 
   async getAutoLockMinutes(): Promise<number> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = 'auto_lock_minutes'`
+      "SELECT value FROM app_settings WHERE key = 'auto_lock_minutes'"
     );
     return parseInt(row?.value ?? '5', 10);
   }
 
   async setAutoLockMinutes(minutes: number): Promise<void> {
     const db = await getDatabase();
+    const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE app_settings SET value = ?, updated_at = datetime('now') WHERE key = 'auto_lock_minutes'`,
-      [minutes.toString()]
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+       VALUES ('auto_lock_minutes', ?, ?)`,
+      [String(minutes), now]
     );
   }
+
+  // ── SETTINGS ──────────────────────────────────────────────────────────────
 
   async getTeacherName(): Promise<string> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<{ value: string }>(
-      `SELECT value FROM app_settings WHERE key = 'teacher_name'`
+      "SELECT value FROM app_settings WHERE key = 'teacher_name'"
     );
-    return row?.value ?? 'Teacher';
+    return row ? JSON.parse(row.value) : 'Teacher';
   }
 
   async setTeacherName(name: string): Promise<void> {
     const db = await getDatabase();
+    const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE app_settings SET value = ?, updated_at = datetime('now') WHERE key = 'teacher_name'`,
-      [name]
+      `INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+       VALUES ('teacher_name', ?, ?)`,
+      [JSON.stringify(name), now]
     );
+  }
+
+  // ── RESET ──────────────────────────────────────────────────────────────────
+
+  async resetApp(): Promise<void> {
+    const db = await getDatabase();
+    // Drop and recreate — nuclear option
+    await db.execAsync('DELETE FROM point_transactions;');
+    await db.execAsync('DELETE FROM attendance_records;');
+    await db.execAsync('DELETE FROM attendance_sessions;');
+    await db.execAsync('DELETE FROM enrollments;');
+    await db.execAsync('DELETE FROM students;');
+    await db.execAsync('DELETE FROM market_items;');
+    await db.execAsync('DELETE FROM ministries;');
+    await db.execAsync('DELETE FROM app_settings;');
+    await db.execAsync('PRAGMA user_version = 0;');
+    await SecureStore.deleteItemAsync(KEYS.salt);
+    await SecureStore.deleteItemAsync(KEYS.lastActive);
+    await SecureStore.deleteItemAsync(KEYS.failCount);
+    await SecureStore.deleteItemAsync(KEYS.failTime);
   }
 }
 

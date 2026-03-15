@@ -1,206 +1,132 @@
-// src/screens/students/PointsLedgerScreen.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StudentsStackParamList, PointTransaction, TransactionType } from '../../types';
+import { TransactionItem } from '../../components/molecules/TransactionItem';
+import { Badge } from '../../components/atoms/Badge';
+import { EmptyState } from '../../components/atoms/EmptyState';
+import { transactionService } from '../../services/TransactionService';
+import { Colors, Typography } from '../../constants';
 
-import React from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
-import { ScreenWrapper, StackHeader } from '../../components/navigation/ScreenWrapper';
-import { GlassCard } from '../../components/atomic/GlassCard';
-import { TransactionItem, PointsSummaryCard } from '../../components/domain';
-import { Divider, EmptyState } from '../../components/atomic';
-import { Colors, Spacing } from '../../theme';
-import { useTransactions } from '../../hooks/useData';
-import { useStudentBalance } from '../../hooks/useStudents';
-import type { StudentsStackParamList } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
+type Props = NativeStackScreenProps<StudentsStackParamList, 'PointsLedger'>;
 
-interface Props {
-  navigation: NativeStackNavigationProp<StudentsStackParamList, 'PointsLedger'>;
-  route: RouteProp<StudentsStackParamList, 'PointsLedger'>;
-}
+const FILTERS: { label: string; value: TransactionType | undefined }[] = [
+  { label: 'All',        value: undefined },
+  { label: 'Attendance', value: 'attendance' },
+  { label: 'Activity',   value: 'activity' },
+  { label: 'Market',     value: 'market_deduction' },
+  { label: 'Manual',     value: 'manual_adjustment' },
+];
 
-export default function PointsLedgerScreen({ navigation, route }: Props) {
+export function PointsLedgerScreen({ route, navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { studentId, studentName } = route.params;
-  const { data: transactions = [] } = useTransactions(studentId);
-  const { data: balance = 0 } = useStudentBalance(studentId);
+  const [transactions, setTransactions] = useState<PointTransaction[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [typeFilter, setTypeFilter] = useState<TransactionType | undefined>(undefined);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const totalEarned = transactions.filter(t => t.points > 0).reduce((s, t) => s + t.points, 0);
-  const totalRedeemed = Math.abs(transactions.filter(t => t.points < 0).reduce((s, t) => s + t.points, 0));
+  const load = useCallback(async (p: number, reset = false) => {
+    if (loading && !reset) return;
+    setLoading(true);
+    try {
+      const [bal, result] = await Promise.all([
+        transactionService.getBalance(studentId),
+        transactionService.getLedger(studentId, { type: typeFilter, page: p, pageSize: 20 }),
+      ]);
+      setBalance(bal);
+      setTransactions((prev) => reset ? result.transactions : [...prev, ...result.transactions]);
+      setHasMore(result.hasMore);
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId, typeFilter]);
+
+  useEffect(() => { setPage(0); load(0, true); }, [typeFilter]);
+
+  const loadMore = () => {
+    if (!hasMore || loading) return;
+    const next = page + 1;
+    setPage(next);
+    load(next);
+  };
 
   return (
-    <ScreenWrapper>
-      <StackHeader title="Points Ledger" subtitle={studentName} onBack={() => navigation.goBack()} />
+    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.back}>‹</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>{studentName}</Text>
+          <Text style={styles.subtitle}>Points Ledger</Text>
+        </View>
+        <View style={styles.balancePill}>
+          <Text style={styles.balanceLabel}>Balance</Text>
+          <Text style={styles.balanceNum}>{balance}</Text>
+        </View>
+      </View>
+
+      {/* TYPE FILTERS */}
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => {
+          const active = f.value === typeFilter;
+          return (
+            <TouchableOpacity key={f.label}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setTypeFilter(f.value)}>
+              <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{f.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* TRANSACTION LIST */}
       <FlatList
         data={transactions}
-        keyExtractor={item => item.id}
-        ListHeaderComponent={
-          <GlassCard style={styles.header}>
-            <PointsSummaryCard balance={balance} totalEarned={totalEarned} totalRedeemed={totalRedeemed} />
-          </GlassCard>
-        }
-        renderItem={({ item, index }) => (
-          <View>
-            {index > 0 && <Divider style={{ marginHorizontal: Spacing.md }} />}
-            <View style={styles.txItem}>
-              <TransactionItem transaction={item} />
-            </View>
-          </View>
-        )}
-        contentContainerStyle={styles.list}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => <TransactionItem tx={item} showRunningBalance />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
+        contentContainerStyle={{ paddingBottom: 24 }}
         ListEmptyComponent={
-          <EmptyState
-            icon={<Text style={{ fontSize: 40 }}>📊</Text>}
-            title="No transactions"
-            message="Points will appear here when awarded."
-          />
+          !loading ? (
+            <EmptyState icon="📊" title="No transactions"
+              subtitle="Points will appear here once earned" />
+          ) : null
         }
-        showsVerticalScrollIndicator={false}
       />
-    </ScreenWrapper>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { margin: Spacing.md },
-  list: { paddingBottom: Spacing.xxl },
-  txItem: { paddingHorizontal: Spacing.md },
+  header: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12,
+    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 12,
+  },
+  back: { fontSize: 28, color: Colors.primary, fontWeight: '700' },
+  title: { fontSize: 17, fontWeight: '600', color: Colors.dark },
+  subtitle: { fontSize: 12, color: Colors.light },
+  balancePill: {
+    backgroundColor: Colors.primaryLight, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center',
+  },
+  balanceLabel: { fontSize: 10, color: Colors.primary, fontWeight: '600' },
+  balanceNum: { fontSize: 20, fontWeight: '800', color: Colors.primary },
+  filterRow: {
+    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10,
+    gap: 8, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  filterChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterLabel: { fontSize: 12, color: Colors.mid, fontWeight: '500' },
+  filterLabelActive: { color: Colors.white, fontWeight: '600' },
 });
-
-
-// ── AwardPointsScreen ─────────────────────────────────────
-
-import { useState, Alert as RNAlert } from 'react';
-import { TextInput, ScrollView, Pressable } from 'react-native';
-import { PrimaryButton } from '../../components/atomic';
-import { Typography, Radius } from '../../theme';
-import { useAwardPoints } from '../../hooks/useData';
-
-interface AwardProps {
-  navigation: NativeStackNavigationProp<StudentsStackParamList, 'AwardPoints'>;
-  route: RouteProp<StudentsStackParamList, 'AwardPoints'>;
-}
-
-const QUICK_AMOUNTS = [5, 10, 15, 20, 25, 50];
-const TX_TYPES = [
-  { value: 'activity', label: '⭐ Activity' },
-  { value: 'bonus', label: '🎁 Bonus' },
-  { value: 'adjustment', label: '✏️ Adjustment' },
-];
-
-export function AwardPointsScreen({ navigation, route }: AwardProps) {
-  const { studentId, studentName } = route.params;
-  const [points, setPoints] = useState('');
-  const [type, setType] = useState('activity');
-  const [description, setDescription] = useState('');
-  const awardMutation = useAwardPoints();
-
-  const handleAward = async () => {
-    const pts = parseInt(points, 10);
-    if (!pts || pts === 0) { RNAlert.alert('Invalid', 'Enter a non-zero point amount.'); return; }
-    if (!description.trim()) { RNAlert.alert('Required', 'Enter a description.'); return; }
-    try {
-      await awardMutation.mutateAsync({
-        student_id: studentId,
-        points: pts,
-        type: type as any,
-        description: description.trim(),
-      });
-      RNAlert.alert('✅ Points Awarded', `${pts > 0 ? '+' : ''}${pts} points added to ${studentName}.`);
-      navigation.goBack();
-    } catch (e: any) {
-      RNAlert.alert('Error', e.message);
-    }
-  };
-
-  return (
-    <ScreenWrapper>
-      <StackHeader title="Award Points" subtitle={studentName} onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-        <GlassCard style={{ padding: Spacing.md, gap: Spacing.md }}>
-          {/* Quick amounts */}
-          <Text style={[Typography.label, { color: Colors.textSecondary }]}>QUICK SELECT</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
-            {QUICK_AMOUNTS.map(amt => (
-              <Pressable
-                key={amt}
-                onPress={() => setPoints(amt.toString())}
-                style={{
-                  paddingHorizontal: 16, paddingVertical: 8,
-                  borderRadius: Radius.full, borderWidth: 1.5,
-                  borderColor: points === amt.toString() ? Colors.primary : Colors.divider,
-                  backgroundColor: points === amt.toString() ? Colors.primary + '15' : Colors.cardBg,
-                }}
-              >
-                <Text style={[Typography.bodyMedium, {
-                  color: points === amt.toString() ? Colors.primary : Colors.textSecondary,
-                }]}>
-                  +{amt}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Custom amount */}
-          <Text style={[Typography.label, { color: Colors.textSecondary }]}>CUSTOM AMOUNT</Text>
-          <TextInput
-            value={points}
-            onChangeText={setPoints}
-            placeholder="Enter points (negative to deduct)"
-            placeholderTextColor={Colors.textTertiary}
-            keyboardType="numbers-and-punctuation"
-            style={[Typography.body, {
-              backgroundColor: Colors.inputBg, borderRadius: Radius.md,
-              borderWidth: 1, borderColor: Colors.inputBorder,
-              padding: Spacing.md, color: Colors.textPrimary,
-            }]}
-          />
-
-          {/* Type */}
-          <Text style={[Typography.label, { color: Colors.textSecondary }]}>TYPE</Text>
-          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            {TX_TYPES.map(t => (
-              <Pressable
-                key={t.value}
-                onPress={() => setType(t.value)}
-                style={{
-                  flex: 1, paddingVertical: 10, borderRadius: Radius.md,
-                  borderWidth: 1.5,
-                  borderColor: type === t.value ? Colors.primary : Colors.divider,
-                  backgroundColor: type === t.value ? Colors.primary + '12' : Colors.cardBg,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={[Typography.captionMedium, {
-                  color: type === t.value ? Colors.primary : Colors.textSecondary,
-                }]}>
-                  {t.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Description */}
-          <Text style={[Typography.label, { color: Colors.textSecondary }]}>DESCRIPTION</Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Reason for award…"
-            placeholderTextColor={Colors.textTertiary}
-            style={[Typography.body, {
-              backgroundColor: Colors.inputBg, borderRadius: Radius.md,
-              borderWidth: 1, borderColor: Colors.inputBorder,
-              padding: Spacing.md, color: Colors.textPrimary,
-            }]}
-          />
-        </GlassCard>
-
-        <PrimaryButton
-          label={awardMutation.isPending ? 'Saving…' : `Award ${points ? points + ' ' : ''}Points`}
-          onPress={handleAward}
-          loading={awardMutation.isPending}
-          size="lg"
-          style={{ marginTop: Spacing.md }}
-        />
-      </ScrollView>
-    </ScreenWrapper>
-  );
-}

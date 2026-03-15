@@ -1,216 +1,162 @@
-// src/screens/students/StudentDetailScreen.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StudentsStackParamList, Student, AttendanceSummary, PointBreakdown } from '../../types';
+import { Avatar } from '../../components/atoms/Avatar';
+import { Badge } from '../../components/atoms/Badge';
+import { AppCard } from '../../components/atoms/AppCard';
+import { PrimaryButton } from '../../components/atoms/PrimaryButton';
+import { PointsSummaryCard } from '../../components/molecules/PointsSummaryCard';
+import { TransactionItem } from '../../components/molecules/TransactionItem';
+import { SectionHeader } from '../../components/molecules/SectionHeader';
+import { studentService } from '../../services/StudentService';
+import { transactionService } from '../../services/TransactionService';
+import { Colors, Typography, Spacing } from '../../constants';
 
-import React from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, Alert, Pressable,
-} from 'react-native';
-import { ScreenWrapper, StackHeader } from '../../components/navigation/ScreenWrapper';
-import { GlassCard } from '../../components/atomic/GlassCard';
-import { Avatar, Badge, PrimaryButton, SectionHeader, Divider } from '../../components/atomic';
-import { PointsSummaryCard, TransactionItem } from '../../components/domain';
-import { Colors, Typography, Spacing, Radius } from '../../theme';
-import { useStudent, useStudentEnrollments, useArchiveStudent } from '../../hooks/useStudents';
-import { useTransactions } from '../../hooks/useData';
-import type { StudentsStackParamList } from '../../types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
+type Props = NativeStackScreenProps<StudentsStackParamList, 'StudentDetail'>;
 
-interface Props {
-  navigation: NativeStackNavigationProp<StudentsStackParamList, 'StudentDetail'>;
-  route: RouteProp<StudentsStackParamList, 'StudentDetail'>;
-}
-
-export default function StudentDetailScreen({ navigation, route }: Props) {
+export function StudentDetailScreen({ route, navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { studentId } = route.params;
-  const { data: student, isLoading } = useStudent(studentId);
-  const { data: enrollments = [] } = useStudentEnrollments(studentId);
-  const { data: transactions = [] } = useTransactions(studentId);
-  const archiveMutation = useArchiveStudent();
+  const [student, setStudent] = useState<Student | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [breakdown, setBreakdown] = useState<PointBreakdown | null>(null);
+  const [attendance, setAttendance] = useState<AttendanceSummary | null>(null);
+  const [recentTx, setRecentTx] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleArchive = () => {
-    Alert.alert(
-      'Archive Student',
-      `Archive ${student?.first_name} ${student?.last_name}? They will be unenrolled from all ministries and hidden from active lists.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: async () => {
-            await archiveMutation.mutateAsync(studentId);
-            navigation.goBack();
-          },
-        },
-      ]
-    );
-  };
+  const load = useCallback(async () => {
+    const [s, bal, bd, att, tx] = await Promise.all([
+      studentService.getById(studentId),
+      transactionService.getBalance(studentId),
+      transactionService.getBreakdown(studentId),
+      studentService.getAttendanceSummary(studentId),
+      transactionService.getLedger(studentId, { pageSize: 5 }),
+    ]);
+    setStudent(s);
+    setBalance(bal);
+    setBreakdown(bd);
+    setAttendance(att);
+    setRecentTx(tx.transactions);
+  }, [studentId]);
 
-  if (isLoading || !student) return null;
+  useEffect(() => { load(); }, [load]);
 
-  const totalEarned = transactions
-    .filter(t => t.points > 0)
-    .reduce((sum, t) => sum + t.points, 0);
-  const totalRedeemed = Math.abs(transactions
-    .filter(t => t.points < 0)
-    .reduce((sum, t) => sum + t.points, 0));
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  if (!student) return <View style={{ flex: 1, backgroundColor: Colors.bg }} />;
+
+  const initials = (student.first_name[0] + (student.last_name[0] ?? '')).toUpperCase();
+  const displayName = student.nickname || `${student.first_name} ${student.last_name}`;
 
   return (
-    <ScreenWrapper>
-      <StackHeader
-        title={`${student.first_name} ${student.last_name}`}
-        onBack={() => navigation.goBack()}
-        rightAction={{
-          icon: <Text style={{ fontSize: 18 }}>✏️</Text>,
-          onPress: () => navigation.navigate('StudentEdit', { studentId }),
-        }}
-      />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
-        {/* Profile card */}
-        <GlassCard style={styles.profileCard}>
-          <Avatar
-            firstName={student.first_name}
-            lastName={student.last_name}
-            photoUri={student.photo_uri}
-            size={80}
-          />
-          <View style={styles.profileInfo}>
-            <Text style={[Typography.title2, { color: Colors.textPrimary }]}>
-              {student.first_name} {student.last_name}
-            </Text>
-            {student.is_archived && (
-              <Badge label="Archived" color={Colors.textTertiary} size="sm" />
-            )}
-            {student.notes && (
-              <Text style={[Typography.caption, { color: Colors.textTertiary }]} numberOfLines={2}>
-                {student.notes}
-              </Text>
-            )}
-          </View>
-        </GlassCard>
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.push('EditStudent', { studentId })}>
+          <Text style={styles.editIcon}>✏️</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Points summary */}
-        <GlassCard style={styles.card}>
-          <PointsSummaryCard
-            balance={student.balance ?? 0}
-            totalEarned={totalEarned}
-            totalRedeemed={totalRedeemed}
-          />
-        </GlassCard>
-
-        {/* Quick actions */}
-        {!student.is_archived && (
-          <View style={styles.actionsRow}>
-            <PrimaryButton
-              label="Award Points"
-              onPress={() => navigation.navigate('AwardPoints', {
-                studentId,
-                studentName: `${student.first_name} ${student.last_name}`,
-              })}
-              size="sm"
-              style={{ flex: 1 }}
-            />
-            <PrimaryButton
-              label="Full Ledger"
-              variant="secondary"
-              onPress={() => navigation.navigate('PointsLedger', {
-                studentId,
-                studentName: `${student.first_name} ${student.last_name}`,
-              })}
-              size="sm"
-              style={{ flex: 1 }}
-            />
-          </View>
+      {/* PROFILE HERO */}
+      <View style={styles.hero}>
+        <Avatar initials={initials} uri={student.photo_uri} size={96} />
+        <Text style={styles.name}>{displayName}</Text>
+        {student.nickname && (
+          <Text style={styles.realName}>{student.first_name} {student.last_name}</Text>
         )}
+        {student.is_archived && (
+          <Badge value="Archived" color={Colors.warning} style={{ marginTop: 8 }} />
+        )}
+      </View>
 
-        {/* Enrollments */}
-        <SectionHeader
-          title="MINISTRIES"
-          action={!student.is_archived ? { label: 'Manage', onPress: () => navigation.navigate('EnrollStudent', { studentId }) } : undefined}
-        />
-        <GlassCard style={styles.card}>
-          {enrollments.length === 0 ? (
-            <Text style={[Typography.body, { color: Colors.textTertiary, textAlign: 'center' }]}>
-              Not enrolled in any ministry.
-            </Text>
-          ) : (
-            enrollments.map((e, i) => (
-              <View key={e.id}>
-                {i > 0 && <Divider />}
-                <View style={styles.enrollmentRow}>
-                  <View style={[styles.ministryDot, { backgroundColor: e.ministry.color }]} />
-                  <Text style={[Typography.bodyMedium, { color: Colors.textPrimary, flex: 1 }]}>
-                    {e.ministry.name}
-                  </Text>
-                  <Text style={[Typography.caption, { color: Colors.textTertiary }]}>
-                    Sat {e.ministry.saturday_points}pts · Sun {e.ministry.sunday_points}pts
-                  </Text>
+      {/* POINTS SUMMARY */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+        <PointsSummaryCard balance={balance} breakdown={breakdown ?? undefined} />
+      </View>
+
+      {/* QUICK ACTIONS */}
+      <View style={styles.quickActions}>
+        {[
+          { label: 'Award Points', icon: '⭐', onPress: () => navigation.push('AwardPoints', { studentId, studentName: student.first_name }) },
+          { label: 'Full Ledger',  icon: '📊', onPress: () => navigation.push('PointsLedger', { studentId, studentName: displayName }) },
+        ].map((a) => (
+          <TouchableOpacity key={a.label} style={styles.quickBtn} onPress={a.onPress} activeOpacity={0.7}>
+            <AppCard style={{ alignItems: 'center' }} padding={14}>
+              <Text style={styles.quickIcon}>{a.icon}</Text>
+              <Text style={styles.quickLabel}>{a.label}</Text>
+            </AppCard>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ATTENDANCE */}
+      {attendance && (
+        <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+          <AppCard>
+            <Text style={styles.cardTitle}>Attendance Overview</Text>
+            <View style={styles.attRow}>
+              {[
+                { label: 'Present', value: attendance.present_count, color: Colors.accent },
+                { label: 'Absent',  value: attendance.absent_count,  color: Colors.danger },
+                { label: 'Rate',    value: `${attendance.attendance_percentage}%`, color: Colors.primary },
+                { label: 'Streak',  value: `${attendance.streak}🔥`,  color: Colors.warning },
+              ].map((stat) => (
+                <View key={stat.label} style={styles.attStat}>
+                  <Text style={[styles.attValue, { color: stat.color }]}>{stat.value}</Text>
+                  <Text style={styles.attLabel}>{stat.label}</Text>
                 </View>
-              </View>
-            ))
-          )}
-        </GlassCard>
+              ))}
+            </View>
+          </AppCard>
+        </View>
+      )}
 
-        {/* Recent transactions */}
-        <SectionHeader
-          title="RECENT POINTS"
-          action={{
-            label: 'See All',
-            onPress: () => navigation.navigate('PointsLedger', {
-              studentId,
-              studentName: `${student.first_name} ${student.last_name}`,
-            }),
-          }}
-        />
-        <GlassCard style={styles.card}>
-          {transactions.length === 0 ? (
-            <Text style={[Typography.body, { color: Colors.textTertiary, textAlign: 'center' }]}>
-              No transactions yet.
-            </Text>
-          ) : (
-            transactions.slice(0, 5).map((tx, i) => (
-              <View key={tx.id}>
-                {i > 0 && <Divider />}
-                <TransactionItem transaction={tx} />
-              </View>
-            ))
-          )}
-        </GlassCard>
-
-        {/* Archive */}
-        {!student.is_archived && (
-          <View style={{ paddingHorizontal: Spacing.md, marginTop: Spacing.xl }}>
-            <PrimaryButton
-              label="Archive Student"
-              variant="danger"
-              onPress={handleArchive}
-              loading={archiveMutation.isPending}
-            />
-          </View>
+      {/* RECENT TRANSACTIONS */}
+      <SectionHeader title="Recent Transactions"
+        onSeeAll={() => navigation.push('PointsLedger', { studentId, studentName: displayName })} />
+      <AppCard style={{ marginHorizontal: 16 }} padding={0}>
+        {recentTx.length === 0 ? (
+          <Text style={styles.noTx}>No transactions yet</Text>
+        ) : (
+          recentTx.map((tx) => <TransactionItem key={tx.id} tx={tx} />)
         )}
+      </AppCard>
 
-        <View style={{ height: Spacing.xxl * 2 }} />
-      </ScrollView>
-    </ScreenWrapper>
+      {/* DANGER ZONE */}
+      {!student.is_archived && (
+        <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+          <PrimaryButton label="Archive Student" variant="danger"
+            onPress={() => navigation.push('ArchiveStudent', { studentId, studentName: `${student.first_name} ${student.last_name}` })} />
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: Spacing.xxl },
-  profileCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
-    padding: Spacing.md,
-  },
-  profileInfo: { flex: 1, gap: 4 },
-  card: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: Spacing.md },
-  actionsRow: {
-    flexDirection: 'row', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, marginBottom: Spacing.sm,
-  },
-  enrollmentRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  ministryDot: { width: 10, height: 10, borderRadius: 5 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 4 },
+  backBtn: { padding: 4 },
+  backIcon: { fontSize: 28, color: Colors.primary, fontWeight: Typography.bold },
+  editIcon: { fontSize: 22 },
+  hero: { alignItems: 'center', paddingVertical: 20 },
+  name: { fontSize: Typography.xxl, fontWeight: Typography.bold, color: Colors.dark, marginTop: 12 },
+  realName: { fontSize: Typography.sm, color: Colors.light, marginTop: 4 },
+  quickActions: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 16 },
+  quickBtn: { flex: 1 },
+  quickIcon: { fontSize: 28, marginBottom: 8 },
+  quickLabel: { fontSize: Typography.xs, fontWeight: Typography.medium, color: Colors.dark },
+  cardTitle: { fontSize: Typography.md, fontWeight: Typography.semiBold, color: Colors.dark, marginBottom: 16 },
+  attRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  attStat: { alignItems: 'center', flex: 1 },
+  attValue: { fontSize: Typography.xl, fontWeight: Typography.bold },
+  attLabel: { fontSize: Typography.xs, color: Colors.light, marginTop: 4 },
+  noTx: { padding: 20, textAlign: 'center', color: Colors.light, fontSize: Typography.sm },
 });

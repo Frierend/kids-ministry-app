@@ -1,39 +1,47 @@
 {
   "expo": {
-    "name": "Kids Ministry",
-    "slug": "kids-ministry",
+    "name": "Kid's Ministry",
+    "slug": "kids-ministry-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3B82F6"
+    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.yourchurch.kidsministry",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.church.kidsministry",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Use Face ID to quickly unlock the app.",
-        "NSCameraUsageDescription": "Take student profile photos."
+        "NSFaceIDUsageDescription": "Use Face ID to unlock the app",
+        "NSCameraUsageDescription": "Take student profile photos",
+        "NSPhotoLibraryUsageDescription": "Choose student profile photos"
       }
     },
     "android": {
-      "package": "com.yourchurch.kidsministry",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3B82F6"
+      },
+      "package": "com.church.kidsministry",
       "permissions": [
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.CAMERA",
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.RECORD_AUDIO"
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "plugins": [
+      "expo-sqlite",
       "expo-secure-store",
       "expo-local-authentication",
-      "expo-sqlite",
-      "expo-image-picker"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "516ec8c6-1af9-4b4a-9246-e6da9b3c69d8"
-      }
-    }
+      [
+        "expo-image-picker",
+        { "photosPermission": "Allow Kid's Ministry to access your photos." }
+      ]
+    ]
   }
 }

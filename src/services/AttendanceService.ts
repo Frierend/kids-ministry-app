@@ -1,236 +1,335 @@
-// src/services/AttendanceService.ts
-// Manages sessions and attendance records with atomic commit
-
-import { v4 as uuidv4 } from 'uuid';
-import { getDatabase } from '../database/schema';
-import type { AttendanceSession, AttendanceRecord, AttendanceStatus } from '../types';
-import { getPointsForDay } from '../types';
+import { getDatabase, withTransaction } from '../database/client';
+import {
+  AttendanceSession, SessionStudent, BulkAttendanceRecord,
+  CommitResult, CalendarDay, DayOfWeek,
+} from '../types';
+import { transactionService } from './TransactionService';
 import { ministryService } from './MinistryService';
 
+function uuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+function getDayOfWeek(dateStr: string): DayOfWeek {
+  const days: DayOfWeek[] = [
+    'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
+  ];
+  return days[new Date(dateStr + 'T00:00:00').getDay()];
+}
+
 class AttendanceService {
-  // ── Sessions ────────────────────────────────────────────
-
-  async getOrCreateSession(ministryId: string, sessionDate: string): Promise<AttendanceSession> {
+  async getOrCreateSession(
+    ministryId: number,
+    date: string // YYYY-MM-DD
+  ): Promise<AttendanceSession> {
     const db = await getDatabase();
+
+    // Check existing
     const existing = await db.getFirstAsync<any>(
-      `SELECT * FROM attendance_sessions WHERE ministry_id = ? AND session_date = ?`,
-      [ministryId, sessionDate]
+      `SELECT s.*, m.name AS ministry_name,
+         (SELECT COUNT(*) FROM attendance_records ar
+          WHERE ar.session_id = s.id AND ar.is_present = 1) AS present_count,
+         (SELECT COUNT(*) FROM enrollments e
+          WHERE e.ministry_id = s.ministry_id AND e.unenrolled_at IS NULL) AS total_count
+       FROM attendance_sessions s
+       JOIN ministries m ON m.id = s.ministry_id
+       WHERE s.ministry_id = ? AND s.session_date = ?`,
+      [ministryId, date]
     );
-    if (existing) return this._mapSession(existing);
+    if (existing) return mapSession(existing);
 
-    const id = uuidv4();
+    // Create new draft
+    const dayOfWeek = getDayOfWeek(date);
+    const pointsAwarded = await ministryService.getPointsForDay(ministryId, dayOfWeek);
+    const now = new Date().toISOString();
+    const sessionUUID = uuid();
+
     await db.runAsync(
-      `INSERT INTO attendance_sessions (id, ministry_id, session_date, status) VALUES (?, ?, ?, 'draft')`,
-      [id, ministryId, sessionDate]
+      `INSERT INTO attendance_sessions
+         (uuid, ministry_id, session_date, day_of_week, points_awarded, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?)`,
+      [sessionUUID, ministryId, date, dayOfWeek, pointsAwarded, now]
     );
 
-    // Pre-populate records for all enrolled students as 'absent'
-    const students = await db.getAllAsync<{ id: string }>(
+    // Pre-populate absent records for all enrolled students
+    const enrolled = await db.getAllAsync<{ id: number }>(
       `SELECT s.id FROM students s
-       INNER JOIN enrollments e ON e.student_id = s.id
+       JOIN enrollments e ON e.student_id = s.id
        WHERE e.ministry_id = ? AND e.unenrolled_at IS NULL AND s.is_archived = 0`,
       [ministryId]
     );
-    for (const student of students) {
-      await db.runAsync(
-        `INSERT OR IGNORE INTO attendance_records (id, session_id, student_id, status)
-         VALUES (?, ?, ?, 'absent')`,
-        [uuidv4(), id, student.id]
+
+    for (const student of enrolled) {
+      const sessionRow = await db.getFirstAsync<{ id: number }>(
+        'SELECT id FROM attendance_sessions WHERE uuid = ?', [sessionUUID]
       );
+      if (sessionRow) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO attendance_records
+             (session_id, student_id, is_present) VALUES (?, ?, 0)`,
+          [sessionRow.id, student.id]
+        );
+      }
     }
 
-    return (await this.getSessionById(id))!;
+    return (await this.getOrCreateSession(ministryId, date));
   }
 
-  async getSessionById(sessionId: string): Promise<AttendanceSession | null> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<any>(
-      `SELECT s.*, m.name as ministry_name, m.color as ministry_color
-       FROM attendance_sessions s
-       LEFT JOIN ministries m ON m.id = s.ministry_id
-       WHERE s.id = ?`,
-      [sessionId]
-    );
-    if (!row) return null;
-    const session = this._mapSession(row);
-    session.records = await this.getRecords(sessionId);
-    session.present_count = session.records.filter(r => r.status === 'present').length;
-    session.total_count = session.records.length;
-    return session;
-  }
-
-  async getSessionsByMinistry(ministryId: string, limit = 30): Promise<AttendanceSession[]> {
+  async getSessionStudents(sessionId: number): Promise<SessionStudent[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<any>(
       `SELECT s.*,
-         (SELECT COUNT(*) FROM attendance_records ar WHERE ar.session_id = s.id AND ar.status = 'present') as present_count,
-         (SELECT COUNT(*) FROM attendance_records ar WHERE ar.session_id = s.id) as total_count
-       FROM attendance_sessions s
-       WHERE s.ministry_id = ?
-       ORDER BY s.session_date DESC
-       LIMIT ?`,
-      [ministryId, limit]
-    );
-    return rows.map(r => ({ ...this._mapSession(r), present_count: r.present_count, total_count: r.total_count }));
-  }
-
-  async getRecentSessions(limit = 10): Promise<AttendanceSession[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<any>(
-      `SELECT s.*, m.name as ministry_name, m.color as ministry_color,
-         (SELECT COUNT(*) FROM attendance_records ar WHERE ar.session_id = s.id AND ar.status = 'present') as present_count,
-         (SELECT COUNT(*) FROM attendance_records ar WHERE ar.session_id = s.id) as total_count
-       FROM attendance_sessions s
-       LEFT JOIN ministries m ON m.id = s.ministry_id
-       ORDER BY s.session_date DESC, s.created_at DESC
-       LIMIT ?`,
-      [limit]
-    );
-    return rows.map(r => ({ ...this._mapSession(r), present_count: r.present_count, total_count: r.total_count }));
-  }
-
-  // ── Records ─────────────────────────────────────────────
-
-  async getRecords(sessionId: string): Promise<AttendanceRecord[]> {
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<any>(
-      `SELECT ar.*,
-         s.first_name, s.last_name, s.photo_uri
-       FROM attendance_records ar
-       INNER JOIN students s ON s.id = ar.student_id
-       WHERE ar.session_id = ?
-       ORDER BY s.last_name, s.first_name`,
+         COALESCE(ar.is_present, 0) AS is_present,
+         ar.marked_at,
+         ar.note
+       FROM students s
+       JOIN attendance_records ar ON ar.student_id = s.id AND ar.session_id = ?
+       WHERE s.is_archived = 0
+       ORDER BY s.last_name ASC, s.first_name ASC`,
       [sessionId]
     );
-    return rows.map(r => ({
-      id: r.id,
-      session_id: r.session_id,
-      student_id: r.student_id,
-      status: r.status as AttendanceStatus,
-      marked_at: r.marked_at,
-      student: {
-        id: r.student_id,
-        first_name: r.first_name,
-        last_name: r.last_name,
-        photo_uri: r.photo_uri,
-        is_archived: false,
-        created_at: '',
-        updated_at: '',
-      },
+    return rows.map((r) => ({
+      ...r,
+      is_archived: r.is_archived === 1,
+      is_present: r.is_present === 1,
     }));
   }
 
-  async markAttendance(sessionId: string, studentId: string, status: AttendanceStatus): Promise<void> {
+  async markPresent(sessionId: number, studentId: number): Promise<void> {
+    await this._checkDraft(sessionId);
     const db = await getDatabase();
-    // Guard: session must be draft
-    const session = await db.getFirstAsync<{ status: string }>(
-      `SELECT status FROM attendance_sessions WHERE id = ?`,
-      [sessionId]
-    );
-    if (!session) throw new Error('Session not found');
-    if (session.status === 'committed') throw new Error('Cannot modify a committed session');
-
+    const now = new Date().toISOString();
     await db.runAsync(
-      `INSERT INTO attendance_records (id, session_id, student_id, status)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(session_id, student_id) DO UPDATE SET status = excluded.status, marked_at = datetime('now')`,
-      [uuidv4(), sessionId, studentId, status]
+      `INSERT INTO attendance_records (session_id, student_id, is_present, marked_at)
+       VALUES (?, ?, 1, ?)
+       ON CONFLICT(session_id, student_id)
+       DO UPDATE SET is_present = 1, marked_at = ?`,
+      [sessionId, studentId, now, now]
     );
   }
 
-  // ── Commit ───────────────────────────────────────────────
-  // Atomically: mark session committed + insert point_transactions for present students
+  async markAbsent(sessionId: number, studentId: number, note?: string): Promise<void> {
+    await this._checkDraft(sessionId);
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `INSERT INTO attendance_records (session_id, student_id, is_present, marked_at, note)
+       VALUES (?, ?, 0, ?, ?)
+       ON CONFLICT(session_id, student_id)
+       DO UPDATE SET is_present = 0, marked_at = ?, note = ?`,
+      [sessionId, studentId, now, note ?? null, now, note ?? null]
+    );
+  }
 
-  async commitSession(sessionId: string): Promise<{ pointsAwarded: number; presentCount: number }> {
+  async markBulk(
+    sessionId: number,
+    records: BulkAttendanceRecord[]
+  ): Promise<void> {
+    await this._checkDraft(sessionId);
+    await withTransaction(async (db) => {
+      const now = new Date().toISOString();
+      for (const rec of records) {
+        await db.runAsync(
+          `INSERT INTO attendance_records (session_id, student_id, is_present, marked_at, note)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(session_id, student_id)
+           DO UPDATE SET is_present = ?, marked_at = ?, note = ?`,
+          [
+            sessionId, rec.student_id, rec.is_present ? 1 : 0, now, rec.note ?? null,
+            rec.is_present ? 1 : 0, now, rec.note ?? null,
+          ]
+        );
+      }
+    });
+  }
+
+  async commitSession(sessionId: number): Promise<CommitResult> {
     const db = await getDatabase();
 
-    // Guard: must be draft
+    // Validate draft
     const session = await db.getFirstAsync<any>(
-      `SELECT s.*, m.saturday_points, m.sunday_points
-       FROM attendance_sessions s
-       INNER JOIN ministries m ON m.id = s.ministry_id
-       WHERE s.id = ?`,
-      [sessionId]
+      'SELECT * FROM attendance_sessions WHERE id = ?', [sessionId]
     );
     if (!session) throw new Error('Session not found');
     if (session.status === 'committed') throw new Error('Session already committed');
 
-    const ministry = await ministryService.getById(session.ministry_id);
-    if (!ministry) throw new Error('Ministry not found');
-
-    const pointsPerStudent = getPointsForDay(ministry, session.session_date);
-
-    const presentRecords = await db.getAllAsync<{ student_id: string }>(
-      `SELECT student_id FROM attendance_records WHERE session_id = ? AND status = 'present'`,
+    const presentStudents = await db.getAllAsync<{ student_id: number }>(
+      `SELECT student_id FROM attendance_records
+       WHERE session_id = ? AND is_present = 1`,
       [sessionId]
     );
 
-    // Single atomic transaction
-    await db.execAsync('BEGIN TRANSACTION');
-    try {
-      for (const record of presentRecords) {
+    const totalStudents = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM attendance_records WHERE session_id = ?',
+      [sessionId]
+    );
+
+    await withTransaction(async (db) => {
+      const now = new Date().toISOString();
+
+      // Insert point transaction for each present student
+      for (const { student_id } of presentStudents) {
+        const txUUID = uuid();
         await db.runAsync(
-          `INSERT INTO point_transactions (id, student_id, points, type, description, session_id, created_at)
-           VALUES (?, ?, ?, 'attendance', ?, ?, datetime('now'))`,
+          `INSERT INTO point_transactions
+             (uuid, student_id, type, points, reason, reference_id, reference_type, created_at)
+           VALUES (?, ?, 'attendance', ?, ?, ?, 'session', ?)`,
           [
-            uuidv4(),
-            record.student_id,
-            pointsPerStudent,
-            `Attendance — ${session.session_date}`,
-            sessionId,
+            txUUID,
+            student_id,
+            session.points_awarded,
+            `Attendance: ${session.session_date} (${session.day_of_week})`,
+            session.uuid,
+            now,
           ]
         );
       }
+
+      // Commit the session
       await db.runAsync(
-        `UPDATE attendance_sessions SET status = 'committed', committed_at = datetime('now') WHERE id = ?`,
-        [sessionId]
+        `UPDATE attendance_sessions
+         SET status = 'committed', committed_at = ? WHERE id = ?`,
+        [now, sessionId]
       );
-      await db.execAsync('COMMIT');
-    } catch (err) {
-      await db.execAsync('ROLLBACK');
-      throw err;
-    }
+    });
 
-    return { pointsAwarded: pointsPerStudent * presentRecords.length, presentCount: presentRecords.length };
-  }
-
-  // ── Student history ──────────────────────────────────────
-
-  async getStudentAttendanceHistory(studentId: string, limit = 30): Promise<any[]> {
-    const db = await getDatabase();
-    return db.getAllAsync<any>(
-      `SELECT ar.*, s_sess.session_date, s_sess.ministry_id, m.name as ministry_name, m.color as ministry_color
-       FROM attendance_records ar
-       INNER JOIN attendance_sessions s_sess ON s_sess.id = ar.session_id
-       INNER JOIN ministries m ON m.id = s_sess.ministry_id
-       WHERE ar.student_id = ?
-       ORDER BY s_sess.session_date DESC
-       LIMIT ?`,
-      [studentId, limit]
+    const updatedSession = await db.getFirstAsync<any>(
+      'SELECT * FROM attendance_sessions WHERE id = ?', [sessionId]
     );
-  }
 
-  // ── Private ─────────────────────────────────────────────
-
-  private _mapSession(row: any): AttendanceSession {
     return {
-      id: row.id,
-      ministry_id: row.ministry_id,
-      session_date: row.session_date,
-      status: row.status,
-      created_at: row.created_at,
-      committed_at: row.committed_at,
-      ministry: row.ministry_name ? {
-        id: row.ministry_id,
-        name: row.ministry_name,
-        color: row.ministry_color ?? '#3B7DD8',
-        saturday_points: row.saturday_points ?? 20,
-        sunday_points: row.sunday_points ?? 50,
-        is_active: true,
-        created_at: '',
-      } : undefined,
+      session: mapSession(updatedSession!),
+      awarded_count: presentStudents.length,
+      total_students: totalStudents?.count ?? 0,
+      points_per_student: session.points_awarded,
+      total_points_awarded: presentStudents.length * session.points_awarded,
     };
   }
+
+  async undoCommit(sessionId: number): Promise<void> {
+    const db = await getDatabase();
+    const session = await db.getFirstAsync<any>(
+      'SELECT * FROM attendance_sessions WHERE id = ?', [sessionId]
+    );
+    if (!session || session.status !== 'committed') {
+      throw new Error('Session is not committed');
+    }
+
+    await withTransaction(async (db) => {
+      // Delete point transactions for this session
+      await db.runAsync(
+        `DELETE FROM point_transactions
+         WHERE reference_id = ? AND reference_type = 'session'`,
+        [session.uuid]
+      );
+      // Reset to draft
+      await db.runAsync(
+        `UPDATE attendance_sessions
+         SET status = 'draft', committed_at = NULL WHERE id = ?`,
+        [sessionId]
+      );
+    });
+  }
+
+  async getRecentSessions(
+    ministryId?: number,
+    limit = 10
+  ): Promise<AttendanceSession[]> {
+    const db = await getDatabase();
+    let query = `
+      SELECT s.*, m.name AS ministry_name,
+        (SELECT COUNT(*) FROM attendance_records ar
+         WHERE ar.session_id = s.id AND ar.is_present = 1) AS present_count,
+        (SELECT COUNT(*) FROM attendance_records ar2
+         WHERE ar2.session_id = s.id) AS total_count
+      FROM attendance_sessions s
+      JOIN ministries m ON m.id = s.ministry_id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (ministryId) {
+      query += ' AND s.ministry_id = ?';
+      params.push(ministryId);
+    }
+
+    query += ' ORDER BY s.session_date DESC, s.created_at DESC LIMIT ?';
+    params.push(limit);
+
+    const rows = await db.getAllAsync<any>(query, params);
+    return rows.map(mapSession);
+  }
+
+  async getStudentCalendar(
+    studentId: number,
+    year: number,
+    month: number // 1-12
+  ): Promise<CalendarDay[]> {
+    const db = await getDatabase();
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+
+    const rows = await db.getAllAsync<any>(
+      `SELECT s.session_date, ar.is_present, m.name AS ministry_name
+       FROM attendance_records ar
+       JOIN attendance_sessions s ON s.id = ar.session_id
+       JOIN ministries m ON m.id = s.ministry_id
+       WHERE ar.student_id = ?
+         AND s.session_date BETWEEN ? AND ?
+         AND s.status = 'committed'
+       ORDER BY s.session_date ASC`,
+      [studentId, startDate, endDate]
+    );
+
+    const map = new Map<string, CalendarDay>();
+    for (const row of rows) {
+      if (!map.has(row.session_date)) {
+        map.set(row.session_date, {
+          date: row.session_date,
+          status: row.is_present === 1 ? 'present' : 'absent',
+          sessions: [],
+        });
+      }
+      const day = map.get(row.session_date)!;
+      day.sessions.push({
+        ministry_name: row.ministry_name,
+        is_present: row.is_present === 1,
+      });
+      // If any session is present, mark the day as present
+      if (row.is_present === 1) day.status = 'present';
+    }
+
+    return Array.from(map.values());
+  }
+
+  async getPresentCount(sessionId: number): Promise<number> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM attendance_records WHERE session_id = ? AND is_present = 1',
+      [sessionId]
+    );
+    return row?.count ?? 0;
+  }
+
+  private async _checkDraft(sessionId: number): Promise<void> {
+    const db = await getDatabase();
+    const session = await db.getFirstAsync<{ status: string }>(
+      'SELECT status FROM attendance_sessions WHERE id = ?', [sessionId]
+    );
+    if (!session) throw new Error('Session not found');
+    if (session.status === 'committed') {
+      throw new Error('Cannot modify a committed session');
+    }
+  }
+}
+
+function mapSession(row: any): AttendanceSession {
+  return {
+    ...row,
+  };
 }
 
 export const attendanceService = new AttendanceService();

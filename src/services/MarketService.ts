@@ -1,79 +1,82 @@
-// src/services/MarketService.ts
+import { getDatabase } from '../database/client';
+import { MarketItem, CreateMarketItemInput } from '../types';
 
-import { v4 as uuidv4 } from 'uuid';
-import { getDatabase } from '../database/schema';
-import type { MarketItem } from '../types';
+function uuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
 
 class MarketService {
-  async getAll(availableOnly = false): Promise<MarketItem[]> {
+  async getAll(includeInactive = false): Promise<MarketItem[]> {
     const db = await getDatabase();
-    const clause = availableOnly ? 'WHERE is_available = 1' : '';
-    const rows = await db.getAllAsync<any>(
-      `SELECT * FROM market_items ${clause} ORDER BY name`
+    const rows = await db.getAllAsync<MarketItem>(
+      `SELECT * FROM market_items
+       WHERE is_active = ${includeInactive ? '0 OR is_active = 1' : '1'}
+       ORDER BY point_cost ASC, name ASC`
     );
-    return rows.map(this._map);
+    return rows.map((r) => ({ ...r, is_active: (r.is_active as any) === 1 }));
   }
 
-  async getById(id: string): Promise<MarketItem | null> {
+  async getById(id: number): Promise<MarketItem | null> {
     const db = await getDatabase();
-    const row = await db.getFirstAsync<any>(`SELECT * FROM market_items WHERE id = ?`, [id]);
-    return row ? this._map(row) : null;
+    const row = await db.getFirstAsync<MarketItem>(
+      'SELECT * FROM market_items WHERE id = ?', [id]
+    );
+    if (!row) return null;
+    return { ...row, is_active: (row.is_active as any) === 1 };
   }
 
-  async create(data: {
-    name: string;
-    description?: string;
-    point_cost: number;
-    quantity?: number;
-    image_uri?: string;
-  }): Promise<MarketItem> {
+  async create(data: CreateMarketItemInput): Promise<MarketItem> {
     const db = await getDatabase();
-    const id = uuidv4();
+    const now = new Date().toISOString();
+    const result = await db.runAsync(
+      `INSERT INTO market_items
+         (uuid, name, description, point_cost, stock, photo_uri, is_active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+      [
+        uuid(),
+        data.name.trim(),
+        data.description?.trim() || null,
+        data.point_cost,
+        data.stock ?? -1,
+        data.photo_uri || null,
+        now,
+      ]
+    );
+    return (await this.getById(result.lastInsertRowId))!;
+  }
+
+  async update(id: number, data: Partial<CreateMarketItemInput>): Promise<MarketItem> {
+    const db = await getDatabase();
+    const current = await this.getById(id);
+    if (!current) throw new Error('Item not found');
+
     await db.runAsync(
-      `INSERT INTO market_items (id, name, description, point_cost, quantity, image_uri)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, data.name, data.description ?? null, data.point_cost, data.quantity ?? -1, data.image_uri ?? null]
+      `UPDATE market_items
+       SET name = ?, description = ?, point_cost = ?, stock = ?, photo_uri = ?
+       WHERE id = ?`,
+      [
+        data.name?.trim() ?? current.name,
+        data.description?.trim() ?? current.description,
+        data.point_cost ?? current.point_cost,
+        data.stock ?? current.stock,
+        data.photo_uri ?? current.photo_uri,
+        id,
+      ]
     );
     return (await this.getById(id))!;
   }
 
-  async update(id: string, data: Partial<{
-    name: string;
-    description: string | null;
-    point_cost: number;
-    quantity: number;
-    is_available: boolean;
-    image_uri: string | null;
-  }>): Promise<MarketItem> {
+  async deactivate(id: number): Promise<void> {
     const db = await getDatabase();
-    const sets: string[] = [];
-    const values: any[] = [];
-    for (const [k, v] of Object.entries(data)) {
-      sets.push(`${k} = ?`);
-      values.push(k === 'is_available' ? (v ? 1 : 0) : v);
-    }
-    if (sets.length > 0) {
-      await db.runAsync(`UPDATE market_items SET ${sets.join(', ')} WHERE id = ?`, [...values, id]);
-    }
-    return (await this.getById(id))!;
+    await db.runAsync('UPDATE market_items SET is_active = 0 WHERE id = ?', [id]);
   }
 
-  async delete(id: string): Promise<void> {
+  async activate(id: number): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync(`UPDATE market_items SET is_available = 0 WHERE id = ?`, [id]);
-  }
-
-  private _map(row: any): MarketItem {
-    return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      point_cost: row.point_cost,
-      quantity: row.quantity,
-      is_available: row.is_available === 1,
-      image_uri: row.image_uri,
-      created_at: row.created_at,
-    };
+    await db.runAsync('UPDATE market_items SET is_active = 1 WHERE id = ?', [id]);
   }
 }
 
