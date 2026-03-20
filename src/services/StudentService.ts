@@ -1,7 +1,7 @@
-import { getDatabase } from '../database/client';
+import { getDatabase, withTransaction } from '../database/client';
 import {
   Student, CreateStudentInput, UpdateStudentInput,
-  StudentFilters, AttendanceSummary, PointBreakdown,
+  StudentFilters, AttendanceSummary,
 } from '../types';
 import { Defaults } from '../constants';
 
@@ -27,36 +27,24 @@ class StudentService {
       pageSize = Defaults.pageSize,
     } = filters;
 
-    let query = `
-      SELECT DISTINCT s.*
-      FROM students s
-    `;
+    let query = `SELECT DISTINCT s.* FROM students s`;
     const params: any[] = [];
 
     if (ministryId) {
-      query += `
-        JOIN enrollments e ON e.student_id = s.id
-          AND e.ministry_id = ? AND e.unenrolled_at IS NULL
-      `;
+      query += ` JOIN enrollments e ON e.student_id = s.id
+        AND e.ministry_id = ? AND e.unenrolled_at IS NULL`;
       params.push(ministryId);
     }
 
     query += ' WHERE 1=1';
-
-    if (!includeArchived) {
-      query += ' AND s.is_archived = 0';
-    }
-
+    if (!includeArchived) query += ' AND s.is_archived = 0';
     if (searchQuery.trim()) {
-      query += ` AND (
-        s.first_name LIKE ? OR s.last_name LIKE ? OR s.nickname LIKE ?
-      )`;
+      query += ` AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.nickname LIKE ?)`;
       const like = `%${searchQuery.trim()}%`;
       params.push(like, like, like);
     }
 
-    query += ` ORDER BY s.last_name ASC, s.first_name ASC
-               LIMIT ? OFFSET ?`;
+    query += ` ORDER BY s.last_name ASC, s.first_name ASC LIMIT ? OFFSET ?`;
     params.push(pageSize, page * pageSize);
 
     const rows = await db.getAllAsync<any>(query, params);
@@ -65,9 +53,7 @@ class StudentService {
 
   async getById(id: number): Promise<Student | null> {
     const db = await getDatabase();
-    const row = await db.getFirstAsync<any>(
-      'SELECT * FROM students WHERE id = ?', [id]
-    );
+    const row = await db.getFirstAsync<any>('SELECT * FROM students WHERE id = ?', [id]);
     return row ? mapRow(row) : null;
   }
 
@@ -97,13 +83,10 @@ class StudentService {
 
     const studentId = result.lastInsertRowId;
 
-    // Enroll in ministries if provided
     if (data.ministry_ids?.length) {
       for (const mid of data.ministry_ids) {
         await db.runAsync(
-          `INSERT OR IGNORE INTO enrollments
-             (student_id, ministry_id, enrolled_at)
-           VALUES (?, ?, ?)`,
+          `INSERT OR IGNORE INTO enrollments (student_id, ministry_id, enrolled_at) VALUES (?, ?, ?)`,
           [studentId, mid, now]
         );
       }
@@ -115,7 +98,6 @@ class StudentService {
   async update(id: number, data: UpdateStudentInput): Promise<Student> {
     const db = await getDatabase();
     const now = new Date().toISOString();
-
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -132,11 +114,7 @@ class StudentService {
     fields.push('updated_at = ?');
     values.push(now, id);
 
-    await db.runAsync(
-      `UPDATE students SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
-
+    await db.runAsync(`UPDATE students SET ${fields.join(', ')} WHERE id = ?`, values);
     return (await this.getById(id))!;
   }
 
@@ -144,9 +122,7 @@ class StudentService {
     const db = await getDatabase();
     const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE students
-       SET is_archived = 1, archived_at = ?, archived_reason = ?, updated_at = ?
-       WHERE id = ?`,
+      `UPDATE students SET is_archived = 1, archived_at = ?, archived_reason = ?, updated_at = ? WHERE id = ?`,
       [now, reason, now, id]
     );
   }
@@ -155,11 +131,27 @@ class StudentService {
     const db = await getDatabase();
     const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE students
-       SET is_archived = 0, archived_at = NULL, archived_reason = NULL, updated_at = ?
-       WHERE id = ?`,
+      `UPDATE students SET is_archived = 0, archived_at = NULL, archived_reason = NULL, updated_at = ? WHERE id = ?`,
       [now, id]
     );
+  }
+
+  /**
+   * PERMANENTLY delete a student and ALL their data.
+   * This is irreversible — use only after explicit double-confirmation.
+   * Deletes: enrollments, attendance_records, point_transactions, then the student row.
+   */
+  async permanentDelete(id: number): Promise<void> {
+    await withTransaction(async (db) => {
+      // Delete point transactions
+      await db.runAsync('DELETE FROM point_transactions WHERE student_id = ?', [id]);
+      // Delete attendance records
+      await db.runAsync('DELETE FROM attendance_records WHERE student_id = ?', [id]);
+      // Delete enrollments
+      await db.runAsync('DELETE FROM enrollments WHERE student_id = ?', [id]);
+      // Delete the student
+      await db.runAsync('DELETE FROM students WHERE id = ?', [id]);
+    });
   }
 
   async getPointBalance(id: number): Promise<number> {
@@ -171,12 +163,8 @@ class StudentService {
     return row?.balance ?? 0;
   }
 
-  async getAttendanceSummary(
-    id: number,
-    ministryId?: number
-  ): Promise<AttendanceSummary> {
+  async getAttendanceSummary(id: number, ministryId?: number): Promise<AttendanceSummary> {
     const db = await getDatabase();
-
     let query = `
       SELECT
         COUNT(*) AS total,
@@ -187,11 +175,7 @@ class StudentService {
       WHERE ar.student_id = ? AND s.status = 'committed'
     `;
     const params: any[] = [id];
-
-    if (ministryId) {
-      query += ' AND s.ministry_id = ?';
-      params.push(ministryId);
-    }
+    if (ministryId) { query += ' AND s.ministry_id = ?'; params.push(ministryId); }
 
     const row = await db.getFirstAsync<any>(query, params);
     const total = row?.total ?? 0;
@@ -214,11 +198,9 @@ class StudentService {
        FROM attendance_records ar
        JOIN attendance_sessions s ON s.id = ar.session_id
        WHERE ar.student_id = ? AND s.status = 'committed'
-       ORDER BY s.session_date DESC
-       LIMIT 30`,
+       ORDER BY s.session_date DESC LIMIT 30`,
       [studentId]
     );
-
     let streak = 0;
     for (const r of rows) {
       if (r.is_present === 1) streak++;
@@ -230,8 +212,7 @@ class StudentService {
   async getEnrolledMinistries(studentId: number): Promise<number[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<{ ministry_id: number }>(
-      `SELECT ministry_id FROM enrollments
-       WHERE student_id = ? AND unenrolled_at IS NULL`,
+      `SELECT ministry_id FROM enrollments WHERE student_id = ? AND unenrolled_at IS NULL`,
       [studentId]
     );
     return rows.map((r) => r.ministry_id);

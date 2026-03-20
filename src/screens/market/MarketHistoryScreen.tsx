@@ -14,18 +14,20 @@ type Props = NativeStackScreenProps<MarketStackParamList, 'MarketHistory'>;
 export function MarketHistoryScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
-  const [studentName, setStudentName] = useState<string>('');
+  const [studentName, setStudentName] = useState('');
 
   useEffect(() => {
     const sid = route.params?.studentId;
     if (sid) {
       studentService.getById(sid).then((s) => {
-        if (s) setStudentName(s.nickname || `${s.first_name} ${s.last_name}`);
+        if (s) setStudentName(s.nickname || (s.first_name + ' ' + s.last_name));
       });
       transactionService.getLedger(sid, { type: 'market_deduction', pageSize: 50 })
         .then((r) => setTransactions(r.transactions));
     }
   }, []);
+
+  const headerTitle = studentName ? (studentName + "'s History") : 'Market History';
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -33,7 +35,7 @@ export function MarketHistoryScreen({ route, navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.back}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{studentName ? `${studentName}'s` : 'Market'} History</Text>
+        <Text style={styles.title}>{headerTitle}</Text>
       </View>
       <FlatList
         data={transactions}

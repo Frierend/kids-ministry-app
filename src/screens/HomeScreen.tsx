@@ -1,37 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  ScrollView, View, Text, TouchableOpacity,
+  StyleSheet, RefreshControl,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { TabParamList, AttendanceStackParamList, StudentsStackParamList } from '../types';
+import { TabParamList, AttendanceSession } from '../types';
 import { AppCard } from '../components/atoms/AppCard';
 import { SectionHeader } from '../components/molecules/SectionHeader';
 import { AttendanceSessionCard } from '../components/organisms/AttendanceSessionCard';
 import { attendanceService } from '../services/AttendanceService';
 import { securityService } from '../services/SecurityService';
 import { studentService } from '../services/StudentService';
-import { AttendanceSession } from '../types';
-import { Colors, Typography, Spacing, Layout } from '../constants';
+import { Colors, Typography, Spacing, Radius, Shadows, Layout } from '../constants';
 import { format } from 'date-fns';
 
 const QUICK_ACTIONS = [
-  { icon: '📋', label: 'Take\nAttendance', tab: 'Attendance' as const },
-  { icon: '👥', label: 'View\nStudents',   tab: 'Students'   as const },
-  { icon: '🛒', label: 'Market\nDay',      tab: 'Market'     as const },
-  { icon: '⚙️', label: 'Settings',          tab: 'Settings'   as const },
+  { icon: '📋', label: 'Take Attendance', tab: 'Attendance' as const, color: Colors.primary },
+  { icon: '👥', label: 'View Students',   tab: 'Students'   as const, color: Colors.secondary },
+  { icon: '🛒', label: 'Market Day',      tab: 'Market'     as const, color: Colors.warning },
+  { icon: '⚙️', label: 'Settings',         tab: 'Settings'   as const, color: Colors.muted },
 ];
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const isFocused = useIsFocused();
   const [teacherName, setTeacherName] = useState('Teacher');
   const [recentSessions, setRecentSessions] = useState<AttendanceSession[]>([]);
   const [studentCount, setStudentCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [name, sessions, students] = await Promise.all([
       securityService.getTeacherName(),
       attendanceService.getRecentSessions(undefined, 5),
@@ -40,9 +42,11 @@ export function HomeScreen() {
     setTeacherName(name);
     setRecentSessions(sessions);
     setStudentCount(students.length);
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (isFocused) load();
+  }, [isFocused, load]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -51,69 +55,98 @@ export function HomeScreen() {
   };
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting =
+    hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const todayStr = format(new Date(), 'EEEE, MMMM d, yyyy');
   const todayShort = format(new Date(), 'yyyy-MM-dd');
   const todaySessions = recentSessions.filter((s) => s.session_date === todayShort);
   const todayPresent = todaySessions.reduce((sum, s) => sum + (s.present_count ?? 0), 0);
+  const committedToday = todaySessions.filter((s) => s.status === 'committed').length;
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.bg }}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      {/* HEADER */}
-      <LinearGradient colors={Colors.gradientHeader} style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>{greeting},</Text>
-            <Text style={styles.teacherName}>{teacherName}! 👋</Text>
+      {/* ── NAVY HERO HEADER ── */}
+      <LinearGradient
+        colors={Colors.gradientNavy as [string, string]}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.heroTop}>
+          <View style={styles.greetingCol}>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={styles.teacherName}>{teacherName} 👋</Text>
+            <Text style={styles.dateText}>{todayStr}</Text>
           </View>
-          <View style={styles.statsBox}>
-            <Text style={styles.statsNum}>{studentCount}</Text>
-            <Text style={styles.statsLabel}>Students</Text>
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatNum}>{studentCount}</Text>
+              <Text style={styles.heroStatLabel}>Students</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatNum}>{todaySessions.length}</Text>
+              <Text style={styles.heroStatLabel}>Sessions</Text>
+            </View>
           </View>
         </View>
-        <Text style={styles.dateText}>{todayStr}</Text>
+
+        {/* Today banner */}
+        <View style={styles.todayCard}>
+          <View style={styles.todayLeft}>
+            <Text style={styles.todayLabel}>Today's Check-ins</Text>
+            <Text style={styles.todayNum}>{todayPresent}</Text>
+            <Text style={styles.todaySub}>
+              {committedToday > 0
+                ? `${committedToday} session${committedToday !== 1 ? 's' : ''} completed`
+                : 'No sessions completed yet'}
+            </Text>
+          </View>
+          <Text style={styles.todayIcon}>📊</Text>
+        </View>
       </LinearGradient>
 
-      {/* TODAY BANNER */}
-      <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
-        <LinearGradient colors={Colors.gradientBlue} style={styles.todayBanner}>
-          <View>
-            <Text style={styles.bannerLabel}>Today's Attendance</Text>
-            <Text style={styles.bannerNum}>{todayPresent}</Text>
-            <Text style={styles.bannerSub}>students checked in across {todaySessions.length} session{todaySessions.length !== 1 ? 's' : ''}</Text>
-          </View>
-          <Text style={styles.bannerIcon}>📊</Text>
-        </LinearGradient>
-      </View>
-
-      {/* QUICK ACTIONS */}
+      {/* ── QUICK ACTIONS ── */}
       <View style={styles.quickGrid}>
         {QUICK_ACTIONS.map((action) => (
-          <TouchableOpacity key={action.label} style={styles.quickItem}
-            onPress={() => navigation.navigate(action.tab)} activeOpacity={0.7}>
-            <AppCard style={{ alignItems: 'center', flex: 1 }} padding={16}>
-              <Text style={styles.quickIcon}>{action.icon}</Text>
-              <Text style={styles.quickLabel}>{action.label.replace('\n', '\n')}</Text>
+          <TouchableOpacity
+            key={action.label}
+            style={styles.quickItem}
+            onPress={() => navigation.navigate(action.tab)}
+            activeOpacity={0.75}
+          >
+            <AppCard style={styles.quickCard} elevated>
+              <View style={[styles.quickIconBox, { backgroundColor: action.color + '18' }]}>
+                <Text style={styles.quickIcon}>{action.icon}</Text>
+              </View>
+              <Text style={styles.quickLabel}>{action.label}</Text>
             </AppCard>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* RECENT SESSIONS */}
-      <SectionHeader title="Recent Sessions" count={recentSessions.length}
-        onSeeAll={() => navigation.navigate('Attendance')} />
+      {/* ── RECENT SESSIONS ── */}
+      <SectionHeader
+        title="Recent Sessions"
+        count={recentSessions.length}
+        onSeeAll={() => navigation.navigate('Attendance')}
+      />
+
       {recentSessions.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No sessions yet. Start taking attendance!</Text>
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyIcon}>📋</Text>
+          <Text style={styles.emptyText}>No sessions yet.</Text>
+          <Text style={styles.emptySub}>Start taking attendance!</Text>
         </View>
       ) : (
         recentSessions.map((session) => (
-          <AttendanceSessionCard key={session.id} session={session}
-            onPress={() => navigation.navigate('Attendance')} />
+          <AttendanceSessionCard
+            key={session.id}
+            session={session}
+            onPress={() => navigation.navigate('Attendance')}
+          />
         ))
       )}
     </ScrollView>
@@ -121,23 +154,78 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 16, paddingBottom: 20 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  greeting: { fontSize: Typography.sm, color: Colors.mid },
-  teacherName: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.dark },
-  dateText: { fontSize: Typography.xs, color: Colors.light },
-  statsBox: { alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12, padding: 12 },
-  statsNum: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.primary },
-  statsLabel: { fontSize: Typography.xs, color: Colors.light },
-  todayBanner: { borderRadius: 16, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bannerLabel: { color: 'rgba(255,255,255,0.8)', fontSize: Typography.sm, marginBottom: 4 },
-  bannerNum: { color: Colors.white, fontSize: 40, fontWeight: Typography.extraBold, lineHeight: 48 },
-  bannerSub: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, marginTop: 4 },
-  bannerIcon: { fontSize: 48 },
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, marginTop: 16, gap: 8 },
-  quickItem: { width: '47%' },
-  quickIcon: { fontSize: 32, marginBottom: 8 },
-  quickLabel: { fontSize: Typography.sm, fontWeight: Typography.medium, color: Colors.dark, textAlign: 'center' },
-  empty: { paddingHorizontal: 16, paddingVertical: 20 },
-  emptyText: { color: Colors.light, fontSize: Typography.sm, textAlign: 'center' },
+  container: { flex: 1, backgroundColor: Colors.bg },
+
+  // Hero
+  hero: { paddingHorizontal: 16, paddingBottom: 20 },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  greetingCol: { flex: 1 },
+  greetingText: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.65)', marginBottom: 2 },
+  teacherName: { fontSize: Typography.xxl, fontWeight: '800', color: Colors.white, marginBottom: 4 },
+  dateText: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.5)' },
+  heroStats: { flexDirection: 'row', gap: 8 },
+  heroStatCard: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    minWidth: 56,
+  },
+  heroStatNum: { fontSize: Typography.xl, fontWeight: '800', color: Colors.white },
+  heroStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+
+  // Today card inside hero
+  todayCard: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: Radius.lg,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  todayLeft: { flex: 1 },
+  todayLabel: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
+  todayNum: { fontSize: 40, fontWeight: '800', color: Colors.white, lineHeight: 48 },
+  todaySub: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  todayIcon: { fontSize: 44 },
+
+  // Quick actions
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    gap: 8,
+  },
+  quickItem: { width: '47.5%' },
+  quickCard: { alignItems: 'center', paddingVertical: 18 },
+  quickIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  quickIcon: { fontSize: 26 },
+  quickLabel: {
+    fontSize: Typography.sm,
+    fontWeight: '600',
+    color: Colors.dark,
+    textAlign: 'center',
+  },
+
+  // Empty
+  emptyBox: { alignItems: 'center', padding: 32 },
+  emptyIcon: { fontSize: 40, marginBottom: 8 },
+  emptyText: { fontSize: Typography.md, fontWeight: '600', color: Colors.mid },
+  emptySub: { fontSize: Typography.sm, color: Colors.muted, marginTop: 4 },
 });

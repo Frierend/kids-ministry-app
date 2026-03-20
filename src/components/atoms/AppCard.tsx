@@ -7,11 +7,25 @@ interface AppCardProps {
   style?: ViewStyle;
   padding?: number;
   elevated?: boolean;
+  noPadding?: boolean;
 }
 
-export function AppCard({ children, style, padding = 16, elevated = false }: AppCardProps) {
+export function AppCard({
+  children,
+  style,
+  padding = 16,
+  elevated = false,
+  noPadding = false,
+}: AppCardProps) {
   return (
-    <View style={[styles.card, elevated && styles.elevated, { padding }, style]}>
+    <View
+      style={[
+        styles.card,
+        elevated && styles.elevated,
+        !noPadding && { padding },
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -22,8 +36,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: Colors.border,
     ...Shadows.sm,
   },
-  elevated: { ...Shadows.md },
+  elevated: {
+    ...Shadows.md,
+    borderColor: Colors.borderLight,
+  },
 });

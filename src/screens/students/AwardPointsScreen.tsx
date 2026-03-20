@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -47,7 +48,7 @@ export function AwardPointsScreen({ route, navigation }: Props) {
       } else {
         await transactionService.adjustManual(studentId, p, reason.trim());
       }
-      setSnackbar({ visible: true, message: `${p > 0 ? '+' : ''}${p} pts awarded to ${studentName}!`, isError: false });
+      setSnackbar({ visible: true, message: (p > 0 ? '+' : '') + p + ' pts awarded to ' + studentName + '!', isError: false });
       setTimeout(() => navigation.goBack(), 1500);
     } catch (e: any) {
       setSnackbar({ visible: true, message: e.message ?? 'Failed', isError: true });
@@ -58,11 +59,11 @@ export function AwardPointsScreen({ route, navigation }: Props) {
   };
 
   const ptNum = parseInt(points, 10) || 0;
+  const confirmMessage = 'Award ' + (ptNum > 0 ? '+' : '') + ptNum + ' pts to ' + studentName + ' for ' + reason + '?';
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-        {/* HEADER */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.back}>‹</Text>
@@ -72,25 +73,26 @@ export function AwardPointsScreen({ route, navigation }: Props) {
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          {/* STUDENT NAME */}
           <View style={styles.studentBanner}>
             <Text style={styles.studentLabel}>For student</Text>
             <Text style={styles.studentName}>{studentName}</Text>
           </View>
 
-          {/* TYPE TOGGLE */}
           <Text style={styles.fieldLabel}>Type</Text>
           <View style={styles.typeRow}>
-            {([['activity', '⭐ Activity'], ['manual_adjustment', '✏️ Manual']] as const).map(([val, lbl]) => (
+            {(['activity', 'manual_adjustment'] as const).map((val) => (
               <TouchableOpacity key={val} style={[styles.typeBtn, type === val && styles.typeBtnActive]}
                 onPress={() => setType(val)}>
-                <Text style={[styles.typeBtnText, type === val && styles.typeBtnTextActive]}>{lbl}</Text>
+                <Text style={[styles.typeBtnText, type === val && styles.typeBtnTextActive]}>
+                  {val === 'activity' ? 'Activity' : 'Manual'}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* POINTS INPUT */}
-          <Text style={styles.fieldLabel}>Points {type === 'manual_adjustment' ? '(negative to deduct)' : ''}</Text>
+          <Text style={styles.fieldLabel}>
+            {type === 'manual_adjustment' ? 'Points (negative to deduct)' : 'Points'}
+          </Text>
           <TextInput
             style={[styles.largeInput, error.includes('point') && styles.inputError]}
             value={points}
@@ -100,7 +102,6 @@ export function AwardPointsScreen({ route, navigation }: Props) {
             placeholderTextColor={Colors.light}
           />
 
-          {/* QUICK REASONS */}
           <Text style={styles.fieldLabel}>Reason</Text>
           <View style={styles.quickReasons}>
             {QUICK_REASONS.map((r) => (
@@ -122,20 +123,20 @@ export function AwardPointsScreen({ route, navigation }: Props) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          {/* PREVIEW */}
-          {ptNum !== 0 && reason.trim() ? (
+          {ptNum !== 0 && reason.trim().length > 0 && (
             <View style={styles.preview}>
               <Text style={styles.previewText}>
-                Award <Text style={{ color: ptNum > 0 ? Colors.accent : Colors.danger, fontWeight: '700' }}>
-                  {ptNum > 0 ? '+' : ''}{ptNum} pts
-                </Text> to <Text style={{ fontWeight: '600' }}>{studentName}</Text>{'
-'}for "{reason}"
+                {'Award '}
+                <Text style={{ color: ptNum > 0 ? Colors.accent : Colors.danger, fontWeight: '700' }}>
+                  {(ptNum > 0 ? '+' : '') + ptNum + ' pts'}
+                </Text>
+                {' to ' + studentName + ' for "' + reason + '"'}
               </Text>
             </View>
-          ) : null}
+          )}
 
           <PrimaryButton
-            label={`Award Points`}
+            label="Award Points"
             onPress={() => { if (validate()) setShowConfirm(true); }}
             style={{ marginTop: 16 }}
             variant={type === 'manual_adjustment' && ptNum < 0 ? 'danger' : 'filled'}
@@ -145,7 +146,7 @@ export function AwardPointsScreen({ route, navigation }: Props) {
         <ConfirmationDialog
           visible={showConfirm}
           title="Confirm Award"
-          message={`Award ${ptNum > 0 ? '+' : ''}${ptNum} pts to ${studentName} for "${reason}"?`}
+          message={confirmMessage}
           confirmLabel="Yes, Award"
           onConfirm={handleConfirm}
           onCancel={() => setShowConfirm(false)}

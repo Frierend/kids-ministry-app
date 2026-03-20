@@ -1,44 +1,71 @@
-// ─── COLORS ───────────────────────────────────────────────────────────────────
+// ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
+// Inspired by the reference: dark navy headers, white cards, blue accents
+
 export const Colors = {
-  primary:       '#3B82F6',
-  primaryDark:   '#2563EB',
-  primaryLight:  '#DBEAFE',
+  // Brand
+  primary:       '#3B6CF6',
+  primaryDark:   '#1E3A8A',
+  primaryLight:  '#EFF6FF',
+  primaryMid:    '#BFDBFE',
   secondary:     '#6366F1',
   accent:        '#10B981',
+  accentLight:   '#D1FAE5',
   warning:       '#F59E0B',
+  warningLight:  '#FEF3C7',
   danger:        '#EF4444',
   dangerLight:   '#FEE2E2',
-  dark:          '#1E293B',
-  mid:           '#475569',
-  light:         '#94A3B8',
-  border:        '#E2E8F0',
-  bg:            '#F8FAFC',
+
+  // Navy (header / hero backgrounds)
+  navy:          '#0F2544',
+  navyMid:       '#1E3A5F',
+  navyLight:     '#2D5186',
+
+  // Neutrals
+  dark:          '#111827',
+  mid:           '#4B5563',
+  muted:         '#9CA3AF',
+  light:         '#D1D5DB',
+  border:        '#E5E7EB',
+  borderLight:   '#F3F4F6',
+
+  // Backgrounds
+  bg:            '#F9FAFB',
+  bgBlue:        '#EFF6FF',
   white:         '#FFFFFF',
   cardBg:        '#FFFFFF',
-  cardBorder:    '#E2E8F0',
-  txAttendance:  '#3B82F6',
+
+  // Status
+  present:       '#10B981',
+  absent:        '#EF4444',
+  draft:         '#F59E0B',
+
+  // Transaction types
+  txAttendance:  '#3B6CF6',
   txActivity:    '#10B981',
   txMarket:      '#EF4444',
   txManual:      '#F59E0B',
-  tabActive:     '#3B82F6',
-  tabInactive:   '#94A3B8',
-  gradientBlue:   ['#3B82F6', '#2563EB'] as string[],
-  gradientGreen:  ['#10B981', '#059669'] as string[],
-  gradientPurple: ['#6366F1', '#4F46E5'] as string[],
-  gradientHeader: ['#EFF6FF', '#DBEAFE'] as string[],
+
+  // Tab bar
+  tabActive:     '#3B6CF6',
+  tabInactive:   '#9CA3AF',
+
+  // Gradients
+  gradientNavy:  ['#0F2544', '#1E3A8A'] as string[],
+  gradientBlue:  ['#3B6CF6', '#6366F1'] as string[],
+  gradientGreen: ['#059669', '#10B981'] as string[],
+  gradientCard:  ['#FFFFFF', '#F9FAFB'] as string[],
+  gradientHeader:['#EFF6FF', '#DBEAFE'] as string[],
 };
 
-// ─── SPACING ──────────────────────────────────────────────────────────────────
 export const Spacing = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  32,
-  xxl: 48,
+  xs:   4,
+  sm:   8,
+  md:   16,
+  lg:   24,
+  xl:   32,
+  xxl:  48,
 };
 
-// ─── TYPOGRAPHY ───────────────────────────────────────────────────────────────
 export const Typography = {
   xs:        11,
   sm:        13,
@@ -54,64 +81,70 @@ export const Typography = {
   extraBold: '800' as const,
 };
 
-// ─── BORDER RADIUS ────────────────────────────────────────────────────────────
 export const Radius = {
+  xs:   4,
   sm:   8,
   md:   12,
   lg:   16,
   xl:   20,
+  xxl:  24,
   full: 999,
 };
 
-// ─── SHADOWS ──────────────────────────────────────────────────────────────────
 export const Shadows = {
-  sm: {
+  xs: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
   },
 };
 
-// ─── LAYOUT ───────────────────────────────────────────────────────────────────
 export const Layout = {
-  tabBarHeight:   56,
+  tabBarHeight:   60,
   headerHeight:   56,
   fabSize:        56,
   buttonHeight:   52,
   inputHeight:    52,
   rowHeight:      72,
-  checkboxSize:   40,
-  avatarSm:       36,
-  avatarMd:       48,
+  checkboxSize:   42,
+  avatarXs:       28,
+  avatarSm:       40,
+  avatarMd:       52,
   avatarLg:       72,
   avatarXl:       96,
   screenPadding:  16,
+  cardPadding:    16,
 };
 
-// ─── ANIMATION ────────────────────────────────────────────────────────────────
 export const Animation = {
   fast:   150,
   normal: 250,
   slow:   400,
 };
 
-// ─── QUERY KEYS ───────────────────────────────────────────────────────────────
 export const QueryKeys = {
   students:        'students',
   student:         (id: number) => ['student', id] as const,
@@ -126,7 +159,6 @@ export const QueryKeys = {
   settings:        'settings',
 };
 
-// ─── DEFAULTS ─────────────────────────────────────────────────────────────────
 export const Defaults = {
   pageSize:        25,
   ledgerPageSize:  20,
@@ -136,7 +168,6 @@ export const Defaults = {
   sundayPoints:    50,
 };
 
-// ─── DEFAULT MINISTRIES ───────────────────────────────────────────────────────
 export const DEFAULT_MINISTRIES = [
   {
     name: 'Bamboo Extension',

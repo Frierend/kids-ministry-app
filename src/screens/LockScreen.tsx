@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { PINInput } from '../components/organisms/PINInput';
 import { securityService } from '../services/SecurityService';
-import { Colors, Typography, Spacing } from '../constants';
+import { Colors, Typography } from '../constants';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Lock'>;
 
@@ -68,7 +68,7 @@ export function LockScreen({ navigation }: Props) {
     <LinearGradient colors={['#1E3A8A', '#3B82F6']} style={styles.container}>
       <View style={styles.logo}>
         <Text style={styles.logoIcon}>⛪</Text>
-        <Text style={styles.appName}>Kid's Ministry</Text>
+        <Text style={styles.appName}>{"Kid's Ministry"}</Text>
         <Text style={styles.subtitle}>Attendance System</Text>
       </View>
 
@@ -78,7 +78,7 @@ export function LockScreen({ navigation }: Props) {
         </View>
       ) : countdown > 0 ? (
         <View style={styles.lockoutBox}>
-          <Text style={styles.lockoutText}>Too many attempts. Try again in {countdown}s</Text>
+          <Text style={styles.lockoutText}>{'Too many attempts. Try again in ' + countdown + 's'}</Text>
         </View>
       ) : (
         <PINInput onComplete={handlePIN} error={error} />

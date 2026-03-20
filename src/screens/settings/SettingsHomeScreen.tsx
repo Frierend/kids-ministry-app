@@ -11,10 +11,10 @@ import { Colors, Typography } from '../../constants';
 type Nav = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
 
 const ROWS = [
-  { icon: '⛪', label: 'Ministries',       sub: 'Manage ministry classes',         screen: 'Ministries'   as const },
-  { icon: '🔒', label: 'Security',          sub: 'PIN, biometrics & auto-lock',     screen: 'Security'     as const },
-  { icon: '💾', label: 'Backup & Restore',  sub: 'Export or import your database',  screen: 'Backup'       as const },
-  { icon: 'ℹ️', label: 'About',             sub: 'Version info & tech stack',        screen: 'About'        as const },
+  { icon: '⛪', label: 'Ministries',      sub: 'Manage ministry classes',        screen: 'Ministries'  as const },
+  { icon: '🔒', label: 'Security',         sub: 'PIN, biometrics & auto-lock',    screen: 'Security'    as const },
+  { icon: '💾', label: 'Backup & Restore', sub: 'Export or import your database', screen: 'Backup'      as const },
+  { icon: 'ℹ️', label: 'About',            sub: 'Version info & tech stack',       screen: 'About'       as const },
 ];
 
 export function SettingsHomeScreen() {
@@ -24,20 +24,15 @@ export function SettingsHomeScreen() {
   const [teacherName, setTeacherName] = useState('Teacher');
 
   useEffect(() => {
-    if (isFocused) {
-      securityService.getTeacherName().then(setTeacherName);
-    }
+    if (isFocused) securityService.getTeacherName().then(setTeacherName);
   }, [isFocused]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }}
-      contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* HEADER */}
+    <ScrollView style={{ flex: 1, backgroundColor: Colors.bg }} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Settings</Text>
       </View>
 
-      {/* PROFILE CARD */}
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <AppCard elevated>
           <View style={styles.profileRow}>
@@ -49,13 +44,12 @@ export function SettingsHomeScreen() {
               <Text style={styles.profileRole}>Teacher</Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate('Security')}>
-              <Text style={styles.editBtn}>Edit ›</Text>
+              <Text style={styles.editBtn}>Edit</Text>
             </TouchableOpacity>
           </View>
         </AppCard>
       </View>
 
-      {/* SETTINGS LIST */}
       <View style={{ paddingHorizontal: 16 }}>
         <AppCard padding={0}>
           {ROWS.map((row, i) => (
@@ -74,8 +68,7 @@ export function SettingsHomeScreen() {
         </AppCard>
       </View>
 
-      {/* APP VERSION */}
-      <Text style={styles.version}>Kid's Ministry Attendance · v1.0.0</Text>
+      <Text style={styles.version}>{"Kid's Ministry Attendance · v1.0.0"}</Text>
     </ScrollView>
   );
 }

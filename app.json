@@ -27,11 +27,14 @@
       },
       "package": "com.church.kidsministry",
       "permissions": [
-        "USE_BIOMETRIC",
-        "USE_FINGERPRINT",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -40,8 +43,15 @@
       "expo-local-authentication",
       [
         "expo-image-picker",
-        { "photosPermission": "Allow Kid's Ministry to access your photos." }
+        {
+          "photosPermission": "Allow Kid's Ministry to access your photos."
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d5118f70-24d8-40d1-8a8d-09127792c3dc"
+      }
+    }
   }
 }
