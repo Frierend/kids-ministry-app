@@ -16,7 +16,7 @@ Kids Ministry Attendance App is an offline-first Expo React Native application f
 
 ## Current Source Organization
 
-The current source tree is transitional: Home, Settings, and Ministries screens have started moving into feature folders, while the remaining screens still live under `src/screens`.
+The current source tree is transitional: Home, Settings, Ministries, and Security screens have started moving into feature folders, while the remaining screens still live under `src/screens`.
 
 ```text
 src/
@@ -30,6 +30,7 @@ src/
   features/
     home/
     ministries/
+    security/
     settings/
   navigation/
     RootNavigator.tsx
@@ -65,8 +66,8 @@ src/
 
 - App shell: `src/App.tsx` wraps the root navigator with gesture and safe-area providers.
 - Navigation: `src/navigation/RootNavigator.tsx` owns the root auth/app flow, `MainTabs.tsx` owns the bottom tabs, stack files own each tab's nested routes, and `navigation.types.ts` owns route param-list types.
-- Features: `src/features/home`, `src/features/settings`, and `src/features/ministries` contain the first migrated screen groups.
-- Screens: `src/screens` still contains the remaining auth, attendance, students, and market flows until later migration batches.
+- Features: `src/features/home`, `src/features/settings`, `src/features/ministries`, and `src/features/security` contain the migrated screen groups.
+- Screens: `src/screens` still contains the remaining attendance, students, and market flows until later migration batches.
 - Components: `src/components/ui` contains generic display and feedback primitives, `src/components/forms` contains reusable input controls, and `src/components/domain` contains ministry-specific display components.
 - Services: `src/services` contains database-backed business operations.
 - Database: `src/database` opens SQLite and runs migrations.

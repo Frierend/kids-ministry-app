@@ -3,8 +3,8 @@ import { NavigationContainer, NavigationContainerRef } from '@react-navigation/n
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { RootStackParamList } from './navigation.types';
-import { LockScreen } from '../screens/LockScreen';
-import { SetupPinScreen } from '../screens/SetupPinScreen';
+import { LockScreen } from '../features/security/LockScreen';
+import { SetupPinScreen } from '../features/security/SetupPinScreen';
 import { MainTabs } from './MainTabs';
 import { securityService } from '../services/SecurityService';
 import { runMigrations } from '../database/migrations';
