@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { SettingsStackParamList } from '../../types';
@@ -10,6 +9,7 @@ import { AppCard } from '../../components/atoms/AppCard';
 import { PrimaryButton } from '../../components/atoms/PrimaryButton';
 import { ConfirmationDialog } from '../../components/organisms/ConfirmationDialog';
 import { Snackbar } from '../../components/organisms/Snackbar';
+import { backupService } from '../../services/BackupService';
 import { Colors, Typography } from '../../constants';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Backup'>;
@@ -19,7 +19,7 @@ export function BackupScreen({ route, navigation }: Props) {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
-  const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<{ uri: string; name: string } | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', isError: false });
 
   const toast = (message: string, isError = false) =>
@@ -28,14 +28,7 @@ export function BackupScreen({ route, navigation }: Props) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const dbPath = FileSystem.documentDirectory! + 'SQLite/kidsministry.db';
-      const exportPath = FileSystem.cacheDirectory! + 'kidsministry_backup.db';
-      const info = await FileSystem.getInfoAsync(dbPath);
-      if (!info.exists) {
-        toast('Database file not found', true);
-        return;
-      }
-      await FileSystem.copyAsync({ from: dbPath, to: exportPath });
+      const exportPath = await backupService.exportDatabase();
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(exportPath, {
@@ -43,7 +36,7 @@ export function BackupScreen({ route, navigation }: Props) {
           dialogTitle: "Save Kids Ministry Backup",
           UTI: 'public.data',
         });
-        toast('Backup exported successfully!');
+        toast('Backup exported safely.');
       } else {
         toast('Sharing not available on this device', true);
       }
@@ -61,37 +54,33 @@ export function BackupScreen({ route, navigation }: Props) {
         copyToCacheDirectory: true,
       });
       if (result.canceled || !result.assets?.[0]) return;
-      const uri = result.assets[0].uri;
-      if (!uri.endsWith('.db')) {
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      const name = asset.name ?? uri;
+      if (!backupService.isDatabaseBackupName(name) && !backupService.isDatabaseBackupName(uri)) {
         toast('Please select a valid .db backup file', true);
         return;
       }
-      setPendingUri(uri);
+      await backupService.validateBackupFile(uri);
+      setPendingBackup({ uri, name });
       setShowImportConfirm(true);
     } catch (e: any) {
-      toast('Could not open file picker', true);
+      toast('Invalid backup: ' + (e.message ?? 'Could not read selected file'), true);
     }
   };
 
   const handleImport = async () => {
-    if (!pendingUri) return;
+    if (!pendingBackup) return;
     setImporting(true);
     try {
-      const dbPath = FileSystem.documentDirectory! + 'SQLite/kidsministry.db';
-      // Backup current db first
-      const backupPath = FileSystem.documentDirectory! + 'SQLite/kidsministry_pre_import.db';
-      const exists = await FileSystem.getInfoAsync(dbPath);
-      if (exists.exists) {
-        await FileSystem.copyAsync({ from: dbPath, to: backupPath });
-      }
-      await FileSystem.copyAsync({ from: pendingUri, to: dbPath });
-      toast('Database imported! Restart the app to apply changes.');
+      await backupService.restoreDatabase(pendingBackup.uri);
+      toast('Database imported safely. Restart the app to apply changes.');
     } catch (e: any) {
       toast('Import failed: ' + (e.message ?? ''), true);
     } finally {
       setImporting(false);
       setShowImportConfirm(false);
-      setPendingUri(null);
+      setPendingBackup(null);
     }
   };
 
@@ -156,10 +145,10 @@ export function BackupScreen({ route, navigation }: Props) {
       <ConfirmationDialog
         visible={showImportConfirm}
         title="Import Backup?"
-        message="This will replace all current data with the selected backup file. Your current data will be saved as a snapshot. This cannot be undone."
+        message={`This will replace all current data with "${pendingBackup?.name ?? 'the selected backup'}". Your current data will be saved as a safety snapshot first. This cannot be undone from inside the app.`}
         confirmLabel="Import & Replace"
         onConfirm={handleImport}
-        onCancel={() => { setShowImportConfirm(false); setPendingUri(null); }}
+        onCancel={() => { setShowImportConfirm(false); setPendingBackup(null); }}
         loading={importing}
         destructive
       />
