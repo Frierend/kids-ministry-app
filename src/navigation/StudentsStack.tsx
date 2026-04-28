@@ -1,13 +1,13 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StudentsStackParamList } from './navigation.types';
-import { StudentListScreen }    from '../screens/students/StudentListScreen';
-import { StudentDetailScreen }  from '../screens/students/StudentDetailScreen';
-import { AddStudentScreen }     from '../screens/students/AddStudentScreen';
-import { EditStudentScreen }    from '../screens/students/EditStudentScreen';
-import { PointsLedgerScreen }   from '../screens/students/PointsLedgerScreen';
-import { AwardPointsScreen }    from '../screens/students/AwardPointsScreen';
-import { ArchiveStudentScreen } from '../screens/students/ArchiveStudentScreen';
+import { StudentListScreen }    from '../features/students/StudentListScreen';
+import { StudentDetailScreen }  from '../features/students/StudentDetailScreen';
+import { AddStudentScreen }     from '../features/students/AddStudentScreen';
+import { EditStudentScreen }    from '../features/students/EditStudentScreen';
+import { PointsLedgerScreen }   from '../features/students/PointsLedgerScreen';
+import { AwardPointsScreen }    from '../features/students/AwardPointsScreen';
+import { ArchiveStudentScreen } from '../features/students/ArchiveStudentScreen';
 
 const Stack = createNativeStackNavigator<StudentsStackParamList>();
 
