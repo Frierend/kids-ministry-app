@@ -15,7 +15,7 @@ import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { ministryService } from '../../services/MinistryService';
+import { ministryService } from './ministry.service';
 import { Colors, Typography } from '../../constants';
 
 type Nav = NativeStackNavigationProp<SettingsStackParamList, 'Ministries'>;

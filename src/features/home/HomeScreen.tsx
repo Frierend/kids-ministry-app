@@ -12,9 +12,9 @@ import { TabParamList } from '../../navigation/navigation.types';
 import { AppCard } from '../../components/ui/AppCard';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { AttendanceSessionCard } from '../../components/domain/AttendanceSessionCard';
-import { attendanceService } from '../../services/AttendanceService';
-import { securityService } from '../../services/SecurityService';
-import { studentService } from '../../services/StudentService';
+import { attendanceService } from '../attendance/attendance.service';
+import { securityService } from '../security/security.service';
+import { studentService } from '../students/student.service';
 import { Colors, Typography, Spacing, Radius, Shadows, Layout } from '../../constants';
 import { format } from 'date-fns';
 

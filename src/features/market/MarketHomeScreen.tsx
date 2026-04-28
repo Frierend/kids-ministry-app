@@ -13,8 +13,8 @@ import { AppCard } from '../../components/ui/AppCard';
 import { Avatar } from '../../components/ui/Avatar';
 import { MarketItemCard } from '../../components/domain/MarketItemCard';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { marketService } from '../../services/MarketService';
-import { studentService } from '../../services/StudentService';
+import { marketService } from './market.service';
+import { studentService } from '../students/student.service';
 import { transactionService } from '../../services/TransactionService';
 import { Colors, Typography, Layout, Radius } from '../../constants';
 

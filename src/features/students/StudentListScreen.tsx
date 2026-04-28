@@ -15,8 +15,8 @@ import { SearchBar } from '../../components/forms/SearchBar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { FAB } from '../../components/ui/FAB';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { studentService } from '../../services/StudentService';
-import { ministryService } from '../../services/MinistryService';
+import { studentService } from './student.service';
+import { ministryService } from '../ministries/ministry.service';
 import { Colors, Typography } from '../../constants';
 
 type Nav = NativeStackNavigationProp<StudentsStackParamList, 'StudentList'>;

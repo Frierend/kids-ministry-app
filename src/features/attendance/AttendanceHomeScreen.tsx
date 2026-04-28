@@ -14,8 +14,8 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { MinistrySelector } from '../../components/domain/MinistrySelector';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { AttendanceSessionCard } from '../../components/domain/AttendanceSessionCard';
-import { ministryService } from '../../services/MinistryService';
-import { attendanceService } from '../../services/AttendanceService';
+import { ministryService } from '../ministries/ministry.service';
+import { attendanceService } from './attendance.service';
 import { Colors, Typography, Radius } from '../../constants';
 import { format, addDays } from 'date-fns';
 

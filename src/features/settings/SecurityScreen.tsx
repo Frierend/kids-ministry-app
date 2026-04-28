@@ -10,7 +10,7 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { AppCard } from '../../components/ui/AppCard';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { securityService } from '../../services/SecurityService';
+import { securityService } from '../security/security.service';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Security'>;

@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MarketStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { marketService } from '../../services/MarketService';
+import { marketService } from './market.service';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 
 type Props = NativeStackScreenProps<MarketStackParamList, 'AddEditItem'>;

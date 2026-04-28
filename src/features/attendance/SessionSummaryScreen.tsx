@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AttendanceStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
-import { attendanceService } from '../../services/AttendanceService';
+import { attendanceService } from './attendance.service';
 import { Colors, Typography, Defaults } from '../../constants';
 
 type Props = NativeStackScreenProps<AttendanceStackParamList, 'SessionSummary'>;

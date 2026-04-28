@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/navigation.types';
 import { PINInput } from '../../components/forms/PINInput';
-import { securityService } from '../../services/SecurityService';
+import { securityService } from './security.service';
 import { Colors, Typography } from '../../constants';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Lock'>;

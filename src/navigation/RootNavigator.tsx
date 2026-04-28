@@ -6,7 +6,7 @@ import { RootStackParamList } from './navigation.types';
 import { LockScreen } from '../features/security/LockScreen';
 import { SetupPinScreen } from '../features/security/SetupPinScreen';
 import { MainTabs } from './MainTabs';
-import { securityService } from '../services/SecurityService';
+import { securityService } from '../features/security/security.service';
 import { runMigrations } from '../database/migrations';
 import { Colors } from '../constants';
 

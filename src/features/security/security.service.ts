@@ -2,8 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as ExpoCrypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
-import { getDatabase } from '../database/client';
-import { BiometricResult } from '../types';
+import { getDatabase } from '../../database/client';
+import { BiometricResult } from '../../types';
 
 const KEYS = {
   salt:       'app_salt_v1',

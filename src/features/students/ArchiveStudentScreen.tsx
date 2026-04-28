@@ -10,7 +10,7 @@ import { StudentsStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { studentService } from '../../services/StudentService';
+import { studentService } from './student.service';
 import { Colors, Typography, Radius } from '../../constants';
 
 type Props = NativeStackScreenProps<StudentsStackParamList, 'ArchiveStudent'>;

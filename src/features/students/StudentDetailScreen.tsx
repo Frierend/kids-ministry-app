@@ -16,7 +16,7 @@ import { TransactionItem } from '../../components/domain/TransactionItem';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { studentService } from '../../services/StudentService';
+import { studentService } from './student.service';
 import { transactionService } from '../../services/TransactionService';
 import { Colors, Typography, Layout } from '../../constants';
 

@@ -5,7 +5,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SettingsStackParamList } from '../../navigation/navigation.types';
 import { AppCard } from '../../components/ui/AppCard';
-import { securityService } from '../../services/SecurityService';
+import { securityService } from '../security/security.service';
 import { Colors, Typography } from '../../constants';
 
 type Nav = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;

@@ -6,7 +6,7 @@ import { AttendanceSession } from '../../types';
 import { AttendanceStackParamList } from '../../navigation/navigation.types';
 import { AttendanceSessionCard } from '../../components/domain/AttendanceSessionCard';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { attendanceService } from '../../services/AttendanceService';
+import { attendanceService } from './attendance.service';
 import { Colors, Typography } from '../../constants';
 
 type Props = NativeStackScreenProps<AttendanceStackParamList, 'AttendanceHistory'>;

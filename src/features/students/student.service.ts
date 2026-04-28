@@ -1,9 +1,9 @@
-import { getDatabase, withTransaction } from '../database/client';
+import { getDatabase, withTransaction } from '../../database/client';
 import {
   Student, CreateStudentInput, UpdateStudentInput,
   StudentFilters, AttendanceSummary,
-} from '../types';
-import { Defaults } from '../constants';
+} from '../../types';
+import { Defaults } from '../../constants';
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

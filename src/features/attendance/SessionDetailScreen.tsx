@@ -12,7 +12,7 @@ import { AttendanceCheckbox } from '../../components/domain/AttendanceCheckbox';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { attendanceService } from '../../services/AttendanceService';
+import { attendanceService } from './attendance.service';
 import { getDatabase } from '../../database/client';
 import { Colors, Typography, Layout, Radius } from '../../constants';
 import { format } from 'date-fns';

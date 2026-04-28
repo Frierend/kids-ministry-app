@@ -15,7 +15,7 @@ import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { marketService } from '../../services/MarketService';
+import { marketService } from './market.service';
 import { Colors, Typography } from '../../constants';
 
 type Nav = NativeStackNavigationProp<MarketStackParamList, 'ManageItems'>;

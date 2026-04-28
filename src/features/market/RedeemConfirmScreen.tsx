@@ -7,8 +7,8 @@ import { MarketItem, Student } from '../../types';
 import { MarketStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { marketService } from '../../services/MarketService';
-import { studentService } from '../../services/StudentService';
+import { marketService } from './market.service';
+import { studentService } from '../students/student.service';
 import { transactionService } from '../../services/TransactionService';
 import { Colors, Typography } from '../../constants';
 

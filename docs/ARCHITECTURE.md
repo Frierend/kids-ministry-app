@@ -16,7 +16,7 @@ Kids Ministry Attendance App is an offline-first Expo React Native application f
 
 ## Current Source Organization
 
-The current source tree is transitional: Home, Attendance, Settings, Ministries, Security, Students, and Market screens have moved into feature folders, while shared services remain under `src/services`.
+The current source tree is transitional: Home, Attendance, Settings, Ministries, Security, Students, and Market screens have moved into feature folders. Feature-specific services live with their matching features, while shared services remain under `src/services`.
 
 ```text
 src/
@@ -29,12 +29,17 @@ src/
   database/
   features/
     attendance/
+      attendance.service.ts
     home/
     market/
+      market.service.ts
     ministries/
+      ministry.service.ts
     security/
+      security.service.ts
     settings/
     students/
+      student.service.ts
   navigation/
     RootNavigator.tsx
     MainTabs.tsx
@@ -68,10 +73,10 @@ src/
 
 - App shell: `src/App.tsx` wraps the root navigator with gesture and safe-area providers.
 - Navigation: `src/navigation/RootNavigator.tsx` owns the root auth/app flow, `MainTabs.tsx` owns the bottom tabs, stack files own each tab's nested routes, and `navigation.types.ts` owns route param-list types.
-- Features: `src/features/home`, `src/features/attendance`, `src/features/settings`, `src/features/ministries`, `src/features/security`, `src/features/students`, and `src/features/market` contain the migrated screen groups.
+- Features: `src/features/home`, `src/features/attendance`, `src/features/settings`, `src/features/ministries`, `src/features/security`, `src/features/students`, and `src/features/market` contain the migrated screen groups and their feature-specific services.
 - Screens: legacy screen folders have been removed after migrating the market flow.
 - Components: `src/components/ui` contains generic display and feedback primitives, `src/components/forms` contains reusable input controls, and `src/components/domain` contains ministry-specific display components.
-- Services: `src/services` contains database-backed business operations.
+- Services: `src/services` contains shared database-backed business operations, currently backup/restore and transactions. Feature-specific services live in their matching feature folders.
 - Database: `src/database` opens SQLite and runs migrations.
 - Types: `src/types/index.ts` centralizes domain and service types. Navigation route types live in `src/navigation/navigation.types.ts`.
 
@@ -86,4 +91,4 @@ src/
 
 ## Near-Term Restructure Direction
 
-Future batches should move services into feature areas only when it can be done without behavior changes. Each batch should keep imports valid and run verification after the move.
+Future batches should continue moving shared code into clearer homes only when it can be done without behavior changes. Each batch should keep imports valid and run verification after the move.

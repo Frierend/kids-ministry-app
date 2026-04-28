@@ -1,5 +1,5 @@
-import { getDatabase } from '../database/client';
-import { MarketItem, CreateMarketItemInput } from '../types';
+import { getDatabase } from '../../database/client';
+import { MarketItem, CreateMarketItemInput } from '../../types';
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

@@ -1,9 +1,9 @@
-import { getDatabase, withTransaction } from '../database/client';
+import { getDatabase, withTransaction } from '../../database/client';
 import {
   AttendanceSession, SessionStudent, BulkAttendanceRecord,
   CommitResult, CalendarDay, DayOfWeek,
-} from '../types';
-import { ministryService } from './MinistryService';
+} from '../../types';
+import { ministryService } from '../ministries/ministry.service';
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

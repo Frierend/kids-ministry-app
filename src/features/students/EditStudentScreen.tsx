@@ -9,8 +9,8 @@ import { Ministry } from '../../types';
 import { StudentsStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { studentService } from '../../services/StudentService';
-import { ministryService } from '../../services/MinistryService';
+import { studentService } from './student.service';
+import { ministryService } from '../ministries/ministry.service';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 
 type Props = NativeStackScreenProps<StudentsStackParamList, 'EditStudent'>;

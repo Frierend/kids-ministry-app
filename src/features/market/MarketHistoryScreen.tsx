@@ -7,7 +7,7 @@ import { MarketStackParamList } from '../../navigation/navigation.types';
 import { TransactionItem } from '../../components/domain/TransactionItem';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { transactionService } from '../../services/TransactionService';
-import { studentService } from '../../services/StudentService';
+import { studentService } from '../students/student.service';
 import { Colors, Typography } from '../../constants';
 
 type Props = NativeStackScreenProps<MarketStackParamList, 'MarketHistory'>;

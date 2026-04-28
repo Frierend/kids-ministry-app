@@ -1,6 +1,6 @@
-import { getDatabase } from '../database/client';
-import { Ministry, CreateMinistryInput, DayOfWeek, Enrollment } from '../types';
-import { Defaults } from '../constants';
+import { getDatabase } from '../../database/client';
+import { Ministry, CreateMinistryInput, DayOfWeek, Enrollment } from '../../types';
+import { Defaults } from '../../constants';
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

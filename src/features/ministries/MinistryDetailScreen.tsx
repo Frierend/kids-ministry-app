@@ -11,7 +11,7 @@ import { SettingsStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
-import { ministryService } from '../../services/MinistryService';
+import { ministryService } from './ministry.service';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'MinistryDetail'>;
