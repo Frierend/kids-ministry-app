@@ -3,8 +3,8 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AttendanceStackParamList, AttendanceSession } from '../../types';
-import { AttendanceSessionCard } from '../../components/organisms/AttendanceSessionCard';
-import { EmptyState } from '../../components/atoms/EmptyState';
+import { AttendanceSessionCard } from '../../components/domain/AttendanceSessionCard';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { attendanceService } from '../../services/AttendanceService';
 import { Colors, Typography } from '../../constants';
 

@@ -3,9 +3,9 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StudentsStackParamList, PointTransaction, TransactionType } from '../../types';
-import { TransactionItem } from '../../components/molecules/TransactionItem';
-import { Badge } from '../../components/atoms/Badge';
-import { EmptyState } from '../../components/atoms/EmptyState';
+import { TransactionItem } from '../../components/domain/TransactionItem';
+import { Badge } from '../../components/ui/Badge';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { transactionService } from '../../services/TransactionService';
 import { Colors, Typography } from '../../constants';
 

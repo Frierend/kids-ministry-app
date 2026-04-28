@@ -6,9 +6,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StudentsStackParamList } from '../../types';
-import { PrimaryButton } from '../../components/atoms/PrimaryButton';
-import { ConfirmationDialog } from '../../components/organisms/ConfirmationDialog';
-import { Snackbar } from '../../components/organisms/Snackbar';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
+import { Snackbar } from '../../components/ui/Snackbar';
 import { transactionService } from '../../services/TransactionService';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 

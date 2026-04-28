@@ -6,8 +6,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StudentsStackParamList, Ministry } from '../../types';
-import { PrimaryButton } from '../../components/atoms/PrimaryButton';
-import { Snackbar } from '../../components/organisms/Snackbar';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
+import { Snackbar } from '../../components/ui/Snackbar';
 import { studentService } from '../../services/StudentService';
 import { ministryService } from '../../services/MinistryService';
 import { Colors, Typography, Radius, Layout } from '../../constants';

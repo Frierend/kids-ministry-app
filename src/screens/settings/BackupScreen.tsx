@@ -5,10 +5,10 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { SettingsStackParamList } from '../../types';
-import { AppCard } from '../../components/atoms/AppCard';
-import { PrimaryButton } from '../../components/atoms/PrimaryButton';
-import { ConfirmationDialog } from '../../components/organisms/ConfirmationDialog';
-import { Snackbar } from '../../components/organisms/Snackbar';
+import { AppCard } from '../../components/ui/AppCard';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
+import { Snackbar } from '../../components/ui/Snackbar';
 import { backupService } from '../../services/BackupService';
 import { Colors, Typography } from '../../constants';
 

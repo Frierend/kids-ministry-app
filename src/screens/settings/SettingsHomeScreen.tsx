@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SettingsStackParamList } from '../../types';
-import { AppCard } from '../../components/atoms/AppCard';
+import { AppCard } from '../../components/ui/AppCard';
 import { securityService } from '../../services/SecurityService';
 import { Colors, Typography } from '../../constants';
 

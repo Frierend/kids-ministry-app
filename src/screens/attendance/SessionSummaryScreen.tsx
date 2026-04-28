@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AttendanceStackParamList } from '../../types';
-import { PrimaryButton } from '../../components/atoms/PrimaryButton';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { attendanceService } from '../../services/AttendanceService';
 import { Colors, Typography, Defaults } from '../../constants';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Colors, Typography, Radius, Shadows, Spacing } from '../../constants';
-import { PrimaryButton } from '../atoms/PrimaryButton';
+import { PrimaryButton } from './PrimaryButton';
 
 interface ConfirmationDialogProps {
   visible: boolean;

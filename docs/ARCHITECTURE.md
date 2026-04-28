@@ -22,9 +22,9 @@ The current source tree is screen/service oriented:
 src/
   App.tsx
   components/
-    atoms/
-    molecules/
-    organisms/
+    ui/
+    forms/
+    domain/
   constants/
   database/
   navigation/
@@ -55,7 +55,7 @@ src/
 - App shell: `src/App.tsx` wraps the root navigator with gesture and safe-area providers.
 - Navigation: `src/navigation` owns root auth flow, tabs, and feature stacks.
 - Screens: `src/screens` contains user-facing flows.
-- Components: `src/components` contains reusable UI and domain display components.
+- Components: `src/components/ui` contains generic display and feedback primitives, `src/components/forms` contains reusable input controls, and `src/components/domain` contains ministry-specific display components.
 - Services: `src/services` contains database-backed business operations.
 - Database: `src/database` opens SQLite and runs migrations.
 - Types: `src/types/index.ts` currently centralizes domain and navigation types.
@@ -71,4 +71,4 @@ src/
 
 ## Near-Term Restructure Direction
 
-Future batches should move screens and services into feature folders, then split shared UI, domain UI, and common utilities. Each batch should keep imports valid and run verification after the move.
+Future batches should move screens and services into feature folders, then split common utilities where useful. Each batch should keep imports valid and run verification after the move.

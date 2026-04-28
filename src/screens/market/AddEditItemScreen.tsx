@@ -3,8 +3,8 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Keyboa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MarketStackParamList } from '../../types';
-import { PrimaryButton } from '../../components/atoms/PrimaryButton';
-import { Snackbar } from '../../components/organisms/Snackbar';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
+import { Snackbar } from '../../components/ui/Snackbar';
 import { marketService } from '../../services/MarketService';
 import { Colors, Typography, Radius, Layout } from '../../constants';
 

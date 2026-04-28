@@ -1,8 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { AttendanceSession } from '../../types';
-import { AppCard } from '../atoms/AppCard';
-import { Badge } from '../atoms/Badge';
+import { AppCard } from '../ui/AppCard';
+import { Badge } from '../ui/Badge';
 import { Colors, Typography, Spacing } from '../../constants';
 import { format } from 'date-fns';
 

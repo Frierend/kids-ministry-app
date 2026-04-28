@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParamList } from '../../types';
-import { AppCard } from '../../components/atoms/AppCard';
+import { AppCard } from '../../components/ui/AppCard';
 import { Colors, Typography } from '../../constants';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'About'>;

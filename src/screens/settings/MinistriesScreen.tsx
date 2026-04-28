@@ -8,12 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SettingsStackParamList, Ministry } from '../../types';
-import { AppCard } from '../../components/atoms/AppCard';
-import { Badge } from '../../components/atoms/Badge';
-import { FAB } from '../../components/organisms/FAB';
-import { EmptyState } from '../../components/atoms/EmptyState';
-import { ConfirmationDialog } from '../../components/organisms/ConfirmationDialog';
-import { Snackbar } from '../../components/organisms/Snackbar';
+import { AppCard } from '../../components/ui/AppCard';
+import { Badge } from '../../components/ui/Badge';
+import { FAB } from '../../components/ui/FAB';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
+import { Snackbar } from '../../components/ui/Snackbar';
 import { ministryService } from '../../services/MinistryService';
 import { Colors, Typography } from '../../constants';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Student } from '../../types';
-import { Avatar } from '../atoms/Avatar';
+import { Avatar } from '../ui/Avatar';
 import { Colors, Typography, Layout, Radius, Shadows } from '../../constants';
 
 interface StudentRowProps {

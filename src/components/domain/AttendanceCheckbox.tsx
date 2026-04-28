@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SessionStudent } from '../../types';
-import { Avatar } from '../atoms/Avatar';
+import { Avatar } from '../ui/Avatar';
 import { Colors, Typography, Layout, Radius } from '../../constants';
 
 interface AttendanceCheckboxProps {

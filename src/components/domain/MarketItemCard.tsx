@@ -2,8 +2,8 @@ import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { MarketItem } from '../../types';
-import { AppCard } from '../atoms/AppCard';
-import { PrimaryButton } from '../atoms/PrimaryButton';
+import { AppCard } from '../ui/AppCard';
+import { PrimaryButton } from '../ui/PrimaryButton';
 import { Colors, Typography, Radius } from '../../constants';
 
 interface MarketItemCardProps {

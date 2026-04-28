@@ -3,8 +3,8 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MarketStackParamList, PointTransaction } from '../../types';
-import { TransactionItem } from '../../components/molecules/TransactionItem';
-import { EmptyState } from '../../components/atoms/EmptyState';
+import { TransactionItem } from '../../components/domain/TransactionItem';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { transactionService } from '../../services/TransactionService';
 import { studentService } from '../../services/StudentService';
 import { Colors, Typography } from '../../constants';
