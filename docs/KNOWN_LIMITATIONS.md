@@ -6,10 +6,9 @@
 
 ## Architecture
 
-- The app is still organized by broad `screens`, `services`, and `components` folders.
-- Feature-based module folders have not been introduced yet.
+- The app now uses feature folders for screens and feature-specific services, but some shared code still lives in broad top-level folders.
 - Most screens call services directly instead of using a shared query/cache layer.
-- `src/types/index.ts` currently contains both domain types and navigation param types.
+- `src/types/index.ts` remains a central domain/service type file.
 
 ## Data and Database
 

@@ -2,17 +2,17 @@
 
 ## Current Status
 
-The project does not currently include an automated test suite. Batch 1 adds documentation and scripts only; it does not introduce test frameworks or test files.
+The project does not currently include an automated test suite. Current validation relies on Expo and TypeScript checks plus focused manual testing of core flows.
 
 ## Verification Commands
 
 Current baseline checks:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run doctor
 npx expo install --check
+npx expo-doctor
+npx tsc --noEmit
+git status --short
 ```
 
 ## Priority Test Areas

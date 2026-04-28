@@ -1,6 +1,6 @@
 # Kids Ministry Attendance App
 
-Offline-first mobile app for tracking children, attendance, points, market redemptions, ministries, archives, and app access security for a children's ministry team.
+Offline-first Expo React Native mobile app for tracking children, attendance, points, market redemptions, ministries, archives, backup/restore, and local app access security for a children's ministry team.
 
 ## Tech Stack
 
@@ -31,32 +31,43 @@ Offline-first mobile app for tracking children, attendance, points, market redem
 ```text
 src/
   App.tsx
+  app/
+    AppBootstrap.tsx
+    providers/
+      AppProviders.tsx
   components/
-    atoms/
-    molecules/
-    organisms/
     ui/
     forms/
     domain/
   constants/
   database/
-    client.ts
+    db.ts
     migrations.ts
-  navigation/
-  screens/
+  features/
     attendance/
+      attendance.service.ts
+    home/
     market/
+      market.service.ts
+    ministries/
+      ministry.service.ts
+    security/
+      security.service.ts
     settings/
     students/
+      student.service.ts
+  navigation/
   services/
+    BackupService.ts
+    TransactionService.ts
   types/
 ```
 
-The app is being moved toward a feature-based and layered mobile structure. Batch 1 only cleans repository hygiene and documentation; feature files and services have not been moved yet.
+The app now uses a feature-based structure for screens and feature-specific services. The `src/app` layer owns app bootstrap/provider composition, `src/components` is split into `ui`, `forms`, and `domain`, and shared services remain in `src/services`.
 
 ## Database
 
-The app stores data locally in `kidsministry.db` through `expo-sqlite`. Migrations currently create these tables:
+The app stores data locally in `kidsministry.db` through `expo-sqlite`. `src/database/db.ts` opens the database and exposes transaction helpers. `src/database/migrations.ts` creates these tables:
 
 - `students`
 - `ministries`
@@ -67,7 +78,7 @@ The app stores data locally in `kidsministry.db` through `expo-sqlite`. Migratio
 - `market_items`
 - `app_settings`
 
-The database client enables WAL mode and foreign keys when opening the SQLite database.
+The database client enables WAL mode, foreign keys, and the configured SQLite cache size when opening the database.
 
 ## Getting Started
 
@@ -85,16 +96,18 @@ npm run doctor
 npx expo install --check
 ```
 
+Current validation set:
+
+```bash
+npx expo install --check
+npx expo-doctor
+npx tsc --noEmit
+git status --short
+```
+
 ## Verification Status
 
-Batch 1 keeps the application behavior unchanged. Known baseline issues are tracked in `docs/KNOWN_LIMITATIONS.md`.
-
-Current known verification concerns:
-
-- TypeScript does not pass yet.
-- Some Expo SDK 54 dependency versions are out of alignment.
-- Backup/restore uses SDK-sensitive file-system APIs and still needs hardening.
-- No automated test suite exists yet.
+Current documentation and restructure batches keep application behavior unchanged. Known limitations and future testing priorities are tracked in `docs/KNOWN_LIMITATIONS.md` and `docs/TESTING_PLAN.md`.
 
 ## Documentation
 
@@ -107,4 +120,4 @@ Current known verification concerns:
 
 ## Project Discipline
 
-This repository is intentionally documenting architecture, database design, security policy, backup behavior, testing strategy, and known limitations before larger refactors. The app remains a React Native Expo mobile application and does not adopt server-side accounting-system features or technology.
+This repository keeps architecture, database design, security policy, backup behavior, testing strategy, and known limitations documented alongside behavior-preserving refactors. The app remains a React Native Expo mobile application and does not adopt server-side accounting-system features or technology.
