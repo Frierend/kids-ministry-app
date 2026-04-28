@@ -1,143 +1,110 @@
-# Kids Ministry App
+# Kids Ministry Attendance App
 
-Production-grade React Native (Expo) app for tracking student attendance and points.
+Offline-first mobile app for tracking children, attendance, points, market redemptions, ministries, archives, and app access security for a children's ministry team.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React Native + Expo SDK 52 |
-| Language | TypeScript (strict) |
-| Navigation | React Navigation 6 (native stack + bottom tabs) |
-| Database | expo-sqlite (WAL mode, 9 tables) |
-| State | TanStack React Query v5 |
-| Security | expo-secure-store + expo-local-authentication |
-| Styling | StyleSheet (glassmorphism design system) |
+| Area | Technology |
+| --- | --- |
+| Runtime | Expo SDK 54 |
+| Mobile framework | React Native |
+| Language | TypeScript |
+| Database | expo-sqlite |
+| Navigation | React Navigation 6 |
+| Security storage | expo-secure-store |
+| Biometrics | expo-local-authentication |
+| File sharing and import | expo-file-system, expo-sharing, expo-document-picker |
 
-## Project Structure
+## Current Scope
 
-```
-KidsMinistry/
-├── App.tsx                    # Root entry — DB init, QueryClient, SafeArea
-├── app.json                   # Expo config
-├── src/
-│   ├── theme/index.ts         # Colors, Typography, Spacing, Radius, Shadows
-│   ├── types/index.ts         # All TypeScript interfaces + nav param types
-│   ├── database/
-│   │   └── schema.ts          # SQLite init, 9 tables, all indexes, WAL mode
-│   ├── services/
-│   │   ├── StudentService.ts  # CRUD, search, archive, enrollments
-│   │   ├── AttendanceService.ts # Sessions, records, atomic commit
-│   │   ├── TransactionService.ts # Point ledger, redemptions
-│   │   ├── MinistryService.ts  # Ministry CRUD
-│   │   ├── MarketService.ts    # Market items CRUD
-│   │   └── SecurityService.ts  # PIN (SHA-256+salt), biometrics, auto-lock
-│   ├── hooks/
-│   │   ├── useStudents.ts     # React Query hooks for students
-│   │   ├── useAttendance.ts   # React Query hooks for sessions
-│   │   └── useData.ts         # Transactions, ministries, market hooks
-│   ├── components/
-│   │   ├── atomic/
-│   │   │   ├── GlassCard.tsx  # Glass surface card component
-│   │   │   └── index.tsx      # Avatar, Badge, PointsBadge, PrimaryButton, EmptyState…
-│   │   ├── domain/
-│   │   │   └── index.tsx      # StudentRow, AttendanceCheckbox, TransactionItem…
-│   │   └── navigation/
-│   │       └── ScreenWrapper.tsx # GradientBackground, StackHeader, FAB
-│   ├── screens/
-│   │   ├── auth/LockScreen.tsx
-│   │   ├── home/HomeScreen.tsx
-│   │   ├── attendance/
-│   │   │   ├── AttendanceHomeScreen.tsx
-│   │   │   └── SessionDetailScreen.tsx
-│   │   ├── students/
-│   │   │   ├── StudentListScreen.tsx
-│   │   │   ├── StudentDetailScreen.tsx
-│   │   │   ├── StudentAddScreen.tsx
-│   │   │   └── PointsLedgerScreen.tsx  # + AwardPointsScreen
-│   │   ├── market/
-│   │   │   └── MarketHomeScreen.tsx
-│   │   └── settings/
-│   │       ├── SettingsHomeScreen.tsx
-│   │       ├── MinistriesScreen.tsx
-│   │       ├── MinistryAddScreen.tsx
-│   │       └── SecuritySettingsScreen.tsx
-│   └── navigation/
-│       └── AppNavigator.tsx   # Full nav tree + custom frosted tab bar
+- Home dashboard with quick links and recent attendance sessions.
+- Attendance sessions by ministry and date, including draft sessions, present/absent marking, bulk marking, commit, and undo commit.
+- Student list, profile, add/edit flow, archive/restore, permanent delete, point balance, and point ledger views.
+- Points ledger using append-style transactions for attendance, activities, manual adjustments, and market deductions.
+- Market Day item list, item management, student selection, balance check, and redemption confirmation.
+- Ministry management with active days, point configuration, archive, and restore.
+- PIN setup, PIN lock screen, biometric unlock toggle, auto-lock settings, and teacher name settings.
+- Backup and restore screen for database export/import.
+
+## Current Project Layout
+
+```text
+src/
+  App.tsx
+  components/
+    atoms/
+    molecules/
+    organisms/
+    ui/
+    forms/
+    domain/
+  constants/
+  database/
+    client.ts
+    migrations.ts
+  navigation/
+  screens/
+    attendance/
+    market/
+    settings/
+    students/
+  services/
+  types/
 ```
 
-## Quick Start
+The app is being moved toward a feature-based and layered mobile structure. Batch 1 only cleans repository hygiene and documentation; feature files and services have not been moved yet.
+
+## Database
+
+The app stores data locally in `kidsministry.db` through `expo-sqlite`. Migrations currently create these tables:
+
+- `students`
+- `ministries`
+- `enrollments`
+- `attendance_sessions`
+- `attendance_records`
+- `point_transactions`
+- `market_items`
+- `app_settings`
+
+The database client enables WAL mode and foreign keys when opening the SQLite database.
+
+## Getting Started
 
 ```bash
-cd KidsMinistry
 npm install
-npx expo start
+npm start
 ```
 
-Scan the QR code with Expo Go (iOS/Android) or press `i` for iOS simulator / `a` for Android emulator.
+Useful commands:
 
-## Key Architecture Decisions
-
-### Offline-First SQLite
-- No network required — entire app runs on-device SQLite
-- WAL mode enabled for concurrent reads during writes
-- UUID primary keys for future sync/export compatibility
-
-### Append-Only Point Ledger
-- `point_transactions` rows are NEVER updated or deleted
-- Balance = `SUM(points)` from all rows for a student
-- Makes balance corruption mathematically detectable
-
-### Atomic Session Commit
-- `commitSession()` wraps all point inserts in `BEGIN TRANSACTION`
-- If any insert fails, entire commit rolls back (session stays "draft")
-- `UNIQUE(session_id, student_id)` constraint prevents double-awards
-
-### Security
-- PIN stored as `SHA-256(deviceSalt + pin + deviceSalt)` in SQLite
-- Device salt generated once, stored in iOS Keychain / Android Keystore
-- 5-attempt lockout with 30s cooldown
-- Auto-lock on background (configurable: 1/5/10/30min/Never)
-- Biometrics with Keychain fallback
-
-### React Query Caching
-| Data | Stale Time |
-|------|-----------|
-| Student lists | 60s |
-| Point balances | 30s |
-| Sessions | 10s |
-| Market items | 30s |
-
-## Points System
-
-| Day | Points |
-|-----|--------|
-| Saturday | 20 pts |
-| Sunday | 50 pts |
-
-These values are validated in `MinistryService` and cannot be changed per blueprint spec.
-
-## Database Schema Summary
-
-```
-students           — first/last name, photo, DOB, archived flag
-ministries         — name, color, sat/sun point values
-enrollments        — student↔ministry relationships (soft unenroll)
-attendance_sessions — one per ministry per date, draft→committed
-attendance_records  — one per student per session, present/absent
-point_transactions  — append-only ledger, NEVER update/delete
-market_items       — store items with point costs and quantities
-app_settings       — pin_hash, biometrics_enabled, auto_lock, teacher_name
+```bash
+npm run typecheck
+npm run lint
+npm run doctor
+npx expo install --check
 ```
 
-## Next Steps (Phase 2)
+## Verification Status
 
-- [ ] Student photo capture with expo-image-picker
-- [ ] CSV export via expo-file-system + expo-sharing
-- [ ] SQLite database backup/restore (BackupScreen)
-- [ ] EnrollStudentScreen (multi-ministry enrollment UI)
-- [ ] MinistryDetailScreen (edit ministry, view enrolled students)
-- [ ] MarketItemAddScreen (full form for new items)
-- [ ] StudentEditScreen (update existing student)
-- [ ] Push notification reminders for session days
-- [ ] Charts on HomeScreen (attendance trends)
+Batch 1 keeps the application behavior unchanged. Known baseline issues are tracked in `docs/KNOWN_LIMITATIONS.md`.
+
+Current known verification concerns:
+
+- TypeScript does not pass yet.
+- Some Expo SDK 54 dependency versions are out of alignment.
+- Backup/restore uses SDK-sensitive file-system APIs and still needs hardening.
+- No automated test suite exists yet.
+
+## Documentation
+
+- `docs/ARCHITECTURE.md`
+- `docs/DATABASE_SCHEMA.md`
+- `docs/SECURITY_POLICY.md`
+- `docs/BACKUP_RESTORE.md`
+- `docs/TESTING_PLAN.md`
+- `docs/KNOWN_LIMITATIONS.md`
+
+## Project Discipline
+
+This repository is intentionally documenting architecture, database design, security policy, backup behavior, testing strategy, and known limitations before larger refactors. The app remains a React Native Expo mobile application and does not adopt server-side accounting-system features or technology.
