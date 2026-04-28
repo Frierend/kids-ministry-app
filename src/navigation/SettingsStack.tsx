@@ -1,12 +1,12 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SettingsStackParamList } from './navigation.types';
-import { SettingsHomeScreen }  from '../screens/settings/SettingsHomeScreen';
-import { MinistriesScreen }    from '../screens/settings/MinistriesScreen';
-import { MinistryDetailScreen } from '../screens/settings/MinistryDetailScreen';
-import { SecurityScreen }      from '../screens/settings/SecurityScreen';
-import { BackupScreen }        from '../screens/settings/BackupScreen';
-import { AboutScreen }         from '../screens/settings/AboutScreen';
+import { SettingsHomeScreen }  from '../features/settings/SettingsHomeScreen';
+import { MinistriesScreen }    from '../features/ministries/MinistriesScreen';
+import { MinistryDetailScreen } from '../features/ministries/MinistryDetailScreen';
+import { SecurityScreen }      from '../features/settings/SecurityScreen';
+import { BackupScreen }        from '../features/settings/BackupScreen';
+import { AboutScreen }         from '../features/settings/AboutScreen';
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 

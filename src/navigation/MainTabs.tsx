@@ -7,7 +7,7 @@ import { AttendanceStack } from './AttendanceStack';
 import { StudentsStack } from './StudentsStack';
 import { MarketStack } from './MarketStack';
 import { SettingsStack } from './SettingsStack';
-import { HomeScreen } from '../screens/HomeScreen';
+import { HomeScreen } from '../features/home/HomeScreen';
 import { Colors, Typography, Layout } from '../constants';
 
 const Tab = createBottomTabNavigator<TabParamList>();

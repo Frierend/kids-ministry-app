@@ -7,15 +7,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { AttendanceSession } from '../types';
-import { TabParamList } from '../navigation/navigation.types';
-import { AppCard } from '../components/ui/AppCard';
-import { SectionHeader } from '../components/ui/SectionHeader';
-import { AttendanceSessionCard } from '../components/domain/AttendanceSessionCard';
-import { attendanceService } from '../services/AttendanceService';
-import { securityService } from '../services/SecurityService';
-import { studentService } from '../services/StudentService';
-import { Colors, Typography, Spacing, Radius, Shadows, Layout } from '../constants';
+import { AttendanceSession } from '../../types';
+import { TabParamList } from '../../navigation/navigation.types';
+import { AppCard } from '../../components/ui/AppCard';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { AttendanceSessionCard } from '../../components/domain/AttendanceSessionCard';
+import { attendanceService } from '../../services/AttendanceService';
+import { securityService } from '../../services/SecurityService';
+import { studentService } from '../../services/StudentService';
+import { Colors, Typography, Spacing, Radius, Shadows, Layout } from '../../constants';
 import { format } from 'date-fns';
 
 const QUICK_ACTIONS = [
