@@ -1,11 +1,11 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MarketStackParamList } from './navigation.types';
-import { MarketHomeScreen }    from '../screens/market/MarketHomeScreen';
-import { RedeemConfirmScreen } from '../screens/market/RedeemConfirmScreen';
-import { MarketHistoryScreen } from '../screens/market/MarketHistoryScreen';
-import { ManageItemsScreen }   from '../screens/market/ManageItemsScreen';
-import { AddEditItemScreen }   from '../screens/market/AddEditItemScreen';
+import { MarketHomeScreen }    from '../features/market/MarketHomeScreen';
+import { RedeemConfirmScreen } from '../features/market/RedeemConfirmScreen';
+import { MarketHistoryScreen } from '../features/market/MarketHistoryScreen';
+import { ManageItemsScreen }   from '../features/market/ManageItemsScreen';
+import { AddEditItemScreen }   from '../features/market/AddEditItemScreen';
 
 const Stack = createNativeStackNavigator<MarketStackParamList>();
 
