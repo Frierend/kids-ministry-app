@@ -21,6 +21,10 @@ The current source tree is transitional: Home, Attendance, Settings, Ministries,
 ```text
 src/
   App.tsx
+  app/
+    AppBootstrap.tsx
+    providers/
+      AppProviders.tsx
   components/
     ui/
     forms/
@@ -52,7 +56,7 @@ src/
   types/
 ```
 
-This is functional but still transitional. A later batch should move toward feature-based modules while preserving behavior:
+This is functional but still transitional. Later batches should keep moving toward feature-based modules while preserving behavior:
 
 ```text
 src/
@@ -71,7 +75,7 @@ src/
 
 ## Current Layers
 
-- App shell: `src/App.tsx` wraps the root navigator with gesture and safe-area providers.
+- App shell: `src/App.tsx` is a thin Expo entry wrapper. `src/app/AppBootstrap.tsx` composes the app providers with the root navigator, and `src/app/providers/AppProviders.tsx` owns the existing gesture-handler and safe-area wrappers.
 - Navigation: `src/navigation/RootNavigator.tsx` owns the root auth/app flow, `MainTabs.tsx` owns the bottom tabs, stack files own each tab's nested routes, and `navigation.types.ts` owns route param-list types.
 - Features: `src/features/home`, `src/features/attendance`, `src/features/settings`, `src/features/ministries`, `src/features/security`, `src/features/students`, and `src/features/market` contain the migrated screen groups and their feature-specific services.
 - Screens: legacy screen folders have been removed after migrating the market flow.
