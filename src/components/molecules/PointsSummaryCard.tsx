@@ -11,7 +11,7 @@ interface PointsSummaryCardProps {
 
 export function PointsSummaryCard({ balance, breakdown }: PointsSummaryCardProps) {
   return (
-    <LinearGradient colors={Colors.gradientBlue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+    <LinearGradient colors={Colors.gradientBlue as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={styles.card}>
       <Text style={styles.label}>Total Points Balance</Text>
       <Text style={styles.balance}>{balance.toLocaleString()}</Text>

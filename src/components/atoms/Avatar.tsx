@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, ImageStyle, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Colors, Typography } from '../../constants';
 
@@ -13,7 +13,7 @@ interface AvatarProps {
 
 export function Avatar({ uri, initials, size = 48, style, backgroundColor = Colors.primaryLight }: AvatarProps) {
   if (uri) {
-    return <Image source={{ uri }} style={[{ width: size, height: size, borderRadius: size / 2 }, style]} contentFit="cover" />;
+    return <Image source={{ uri }} style={[{ width: size, height: size, borderRadius: size / 2 }, style as StyleProp<ImageStyle>]} contentFit="cover" />;
   }
   return (
     <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor, alignItems: 'center', justifyContent: 'center' }, style]}>

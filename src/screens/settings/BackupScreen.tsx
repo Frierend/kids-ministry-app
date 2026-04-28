@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { SettingsStackParamList } from '../../types';
@@ -28,8 +28,8 @@ export function BackupScreen({ route, navigation }: Props) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const dbPath = FileSystem.documentDirectory + 'SQLite/kidsministry.db';
-      const exportPath = FileSystem.cacheDirectory + 'kidsministry_backup.db';
+      const dbPath = FileSystem.documentDirectory! + 'SQLite/kidsministry.db';
+      const exportPath = FileSystem.cacheDirectory! + 'kidsministry_backup.db';
       const info = await FileSystem.getInfoAsync(dbPath);
       if (!info.exists) {
         toast('Database file not found', true);
@@ -77,9 +77,9 @@ export function BackupScreen({ route, navigation }: Props) {
     if (!pendingUri) return;
     setImporting(true);
     try {
-      const dbPath = FileSystem.documentDirectory + 'SQLite/kidsministry.db';
+      const dbPath = FileSystem.documentDirectory! + 'SQLite/kidsministry.db';
       // Backup current db first
-      const backupPath = FileSystem.documentDirectory + 'SQLite/kidsministry_pre_import.db';
+      const backupPath = FileSystem.documentDirectory! + 'SQLite/kidsministry_pre_import.db';
       const exists = await FileSystem.getInfoAsync(dbPath);
       if (exists.exists) {
         await FileSystem.copyAsync({ from: dbPath, to: backupPath });

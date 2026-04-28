@@ -14,7 +14,7 @@ export function FAB({ onPress, icon = '+' }: FABProps) {
   return (
     <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Layout.tabBarHeight + 16 }]}
       onPress={onPress} activeOpacity={0.8}>
-      <LinearGradient colors={Colors.gradientBlue} style={styles.gradient}>
+      <LinearGradient colors={Colors.gradientBlue as [string, string]} style={styles.gradient}>
         <Text style={styles.icon}>{icon}</Text>
       </LinearGradient>
     </TouchableOpacity>
