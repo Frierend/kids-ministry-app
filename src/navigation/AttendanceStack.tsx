@@ -1,10 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AttendanceStackParamList } from './navigation.types';
-import { AttendanceHomeScreen }    from '../screens/attendance/AttendanceHomeScreen';
-import { SessionDetailScreen }     from '../screens/attendance/SessionDetailScreen';
-import { AttendanceHistoryScreen } from '../screens/attendance/AttendanceHistoryScreen';
-import { SessionSummaryScreen }    from '../screens/attendance/SessionSummaryScreen';
+import { AttendanceHomeScreen }    from '../features/attendance/AttendanceHomeScreen';
+import { SessionDetailScreen }     from '../features/attendance/SessionDetailScreen';
+import { AttendanceHistoryScreen } from '../features/attendance/AttendanceHistoryScreen';
+import { SessionSummaryScreen }    from '../features/attendance/SessionSummaryScreen';
 
 const Stack = createNativeStackNavigator<AttendanceStackParamList>();
 
