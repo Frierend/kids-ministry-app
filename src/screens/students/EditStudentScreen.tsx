@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StudentsStackParamList, Ministry } from '../../types';
+import { Ministry } from '../../types';
+import { StudentsStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { Snackbar } from '../../components/ui/Snackbar';
 import { studentService } from '../../services/StudentService';

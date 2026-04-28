@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SettingsStackParamList } from '../../types';
+import { SettingsStackParamList } from '../../navigation/navigation.types';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { AppCard } from '../../components/ui/AppCard';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';

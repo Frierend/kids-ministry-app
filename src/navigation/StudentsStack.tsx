@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StudentsStackParamList } from '../types';
+import { StudentsStackParamList } from './navigation.types';
 import { StudentListScreen }    from '../screens/students/StudentListScreen';
 import { StudentDetailScreen }  from '../screens/students/StudentDetailScreen';
 import { AddStudentScreen }     from '../screens/students/AddStudentScreen';

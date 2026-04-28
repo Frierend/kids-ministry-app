@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/navigation.types';
 import { PINInput } from '../components/forms/PINInput';
 import { securityService } from '../services/SecurityService';
 import { Colors, Typography } from '../constants';

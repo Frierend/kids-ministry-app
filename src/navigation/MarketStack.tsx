@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MarketStackParamList } from '../types';
+import { MarketStackParamList } from './navigation.types';
 import { MarketHomeScreen }    from '../screens/market/MarketHomeScreen';
 import { RedeemConfirmScreen } from '../screens/market/RedeemConfirmScreen';
 import { MarketHistoryScreen } from '../screens/market/MarketHistoryScreen';

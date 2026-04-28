@@ -1,8 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TabParamList } from '../types';
+import { TabParamList } from './navigation.types';
 import { AttendanceStack } from './AttendanceStack';
 import { StudentsStack } from './StudentsStack';
 import { MarketStack } from './MarketStack';
@@ -20,7 +20,7 @@ const TABS = [
   { name: 'Settings'   as const, icon: '⚙️', label: 'Settings'  },
 ];
 
-export function MainNavigator() {
+export function MainTabs() {
   const insets = useSafeAreaInsets();
 
   return (

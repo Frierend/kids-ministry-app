@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SettingsStackParamList } from '../types';
+import { SettingsStackParamList } from './navigation.types';
 import { SettingsHomeScreen }  from '../screens/settings/SettingsHomeScreen';
 import { MinistriesScreen }    from '../screens/settings/MinistriesScreen';
 import { MinistryDetailScreen } from '../screens/settings/MinistryDetailScreen';

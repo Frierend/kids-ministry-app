@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SettingsStackParamList } from '../../types';
+import { SettingsStackParamList } from '../../navigation/navigation.types';
 import { AppCard } from '../../components/ui/AppCard';
 import { Colors, Typography } from '../../constants';
 

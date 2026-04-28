@@ -28,6 +28,13 @@ src/
   constants/
   database/
   navigation/
+    RootNavigator.tsx
+    MainTabs.tsx
+    AttendanceStack.tsx
+    StudentsStack.tsx
+    MarketStack.tsx
+    SettingsStack.tsx
+    navigation.types.ts
   screens/
   services/
   types/
@@ -53,12 +60,12 @@ src/
 ## Current Layers
 
 - App shell: `src/App.tsx` wraps the root navigator with gesture and safe-area providers.
-- Navigation: `src/navigation` owns root auth flow, tabs, and feature stacks.
+- Navigation: `src/navigation/RootNavigator.tsx` owns the root auth/app flow, `MainTabs.tsx` owns the bottom tabs, stack files own each tab's nested routes, and `navigation.types.ts` owns route param-list types.
 - Screens: `src/screens` contains user-facing flows.
 - Components: `src/components/ui` contains generic display and feedback primitives, `src/components/forms` contains reusable input controls, and `src/components/domain` contains ministry-specific display components.
 - Services: `src/services` contains database-backed business operations.
 - Database: `src/database` opens SQLite and runs migrations.
-- Types: `src/types/index.ts` currently centralizes domain and navigation types.
+- Types: `src/types/index.ts` centralizes domain and service types. Navigation route types live in `src/navigation/navigation.types.ts`.
 
 ## Architecture Rules
 

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SettingsStackParamList } from '../../types';
+import { SettingsStackParamList } from '../../navigation/navigation.types';
 import { AppCard } from '../../components/ui/AppCard';
 import { securityService } from '../../services/SecurityService';
 import { Colors, Typography } from '../../constants';

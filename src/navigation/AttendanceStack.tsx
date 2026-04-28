@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AttendanceStackParamList } from '../types';
+import { AttendanceStackParamList } from './navigation.types';
 import { AttendanceHomeScreen }    from '../screens/attendance/AttendanceHomeScreen';
 import { SessionDetailScreen }     from '../screens/attendance/SessionDetailScreen';
 import { AttendanceHistoryScreen } from '../screens/attendance/AttendanceHistoryScreen';

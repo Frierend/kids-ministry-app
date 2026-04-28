@@ -6,7 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AttendanceStackParamList, SessionStudent } from '../../types';
+import { SessionStudent } from '../../types';
+import { AttendanceStackParamList } from '../../navigation/navigation.types';
 import { AttendanceCheckbox } from '../../components/domain/AttendanceCheckbox';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';

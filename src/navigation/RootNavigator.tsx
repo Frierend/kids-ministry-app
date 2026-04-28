@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from './navigation.types';
 import { LockScreen } from '../screens/LockScreen';
 import { SetupPinScreen } from '../screens/SetupPinScreen';
-import { MainNavigator } from './MainNavigator';
+import { MainTabs } from './MainTabs';
 import { securityService } from '../services/SecurityService';
 import { runMigrations } from '../database/migrations';
 import { Colors } from '../constants';
@@ -77,7 +77,7 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Setup" component={SetupPinScreen} />
         <Stack.Screen name="Lock" component={LockScreen} />
-        <Stack.Screen name="Main" component={MainNavigator} />
+        <Stack.Screen name="Main" component={MainTabs} />
       </Stack.Navigator>
     </NavigationContainer>
   );

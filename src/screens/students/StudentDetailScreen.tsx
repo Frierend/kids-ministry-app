@@ -6,7 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StudentsStackParamList, Student, AttendanceSummary, PointBreakdown } from '../../types';
+import { Student, AttendanceSummary, PointBreakdown } from '../../types';
+import { StudentsStackParamList } from '../../navigation/navigation.types';
 import { Avatar } from '../../components/ui/Avatar';
 import { AppCard } from '../../components/ui/AppCard';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
