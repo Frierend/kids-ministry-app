@@ -1,4 +1,4 @@
-import { getDatabase, withTransaction } from '../../database/client';
+import { getDatabase, withTransaction } from '../../database/db';
 import {
   AttendanceSession, SessionStudent, BulkAttendanceRecord,
   CommitResult, CalendarDay, DayOfWeek,

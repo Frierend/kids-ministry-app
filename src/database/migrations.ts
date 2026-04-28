@@ -1,4 +1,4 @@
-import { getDatabase, withTransaction } from './client';
+import { getDatabase, withTransaction } from './db';
 import { DEFAULT_MINISTRIES, Defaults } from '../constants';
 
 const CURRENT_VERSION = 1;

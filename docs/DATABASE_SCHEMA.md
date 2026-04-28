@@ -6,7 +6,7 @@ The app uses a local SQLite database named `kidsministry.db` through `expo-sqlit
 
 Database initialization currently lives in:
 
-- `src/database/client.ts`
+- `src/database/db.ts`
 - `src/database/migrations.ts`
 
 The client enables:

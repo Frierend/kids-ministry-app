@@ -1,4 +1,4 @@
-import { getDatabase } from '../../database/client';
+import { getDatabase } from '../../database/db';
 import { Ministry, CreateMinistryInput, DayOfWeek, Enrollment } from '../../types';
 import { Defaults } from '../../constants';
 

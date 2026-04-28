@@ -1,4 +1,4 @@
-import { getDatabase } from '../../database/client';
+import { getDatabase } from '../../database/db';
 import { MarketItem, CreateMarketItemInput } from '../../types';
 
 function uuid(): string {

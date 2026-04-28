@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as ExpoCrypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
-import { getDatabase } from '../../database/client';
+import { getDatabase } from '../../database/db';
 import { BiometricResult } from '../../types';
 
 const KEYS = {

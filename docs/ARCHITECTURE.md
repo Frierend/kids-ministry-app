@@ -31,6 +31,8 @@ src/
     domain/
   constants/
   database/
+    db.ts
+    migrations.ts
   features/
     attendance/
       attendance.service.ts
@@ -81,7 +83,7 @@ src/
 - Screens: legacy screen folders have been removed after migrating the market flow.
 - Components: `src/components/ui` contains generic display and feedback primitives, `src/components/forms` contains reusable input controls, and `src/components/domain` contains ministry-specific display components.
 - Services: `src/services` contains shared database-backed business operations, currently backup/restore and transactions. Feature-specific services live in their matching feature folders.
-- Database: `src/database` opens SQLite and runs migrations.
+- Database: `src/database/db.ts` opens SQLite and exposes transaction helpers. `src/database/migrations.ts` runs migrations.
 - Types: `src/types/index.ts` centralizes domain and service types. Navigation route types live in `src/navigation/navigation.types.ts`.
 
 ## Architecture Rules

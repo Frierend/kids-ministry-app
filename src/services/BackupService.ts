@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SQLite from 'expo-sqlite';
-import { closeDatabase, getDatabase } from '../database/client';
+import { closeDatabase, getDatabase } from '../database/db';
 import { DB_NAME, DB_VERSION } from '../constants/app';
 
 const TEMP_IMPORT_DB = 'kidsministry_import_validation.db';

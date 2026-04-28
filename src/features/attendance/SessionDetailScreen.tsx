@@ -13,7 +13,7 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { Snackbar } from '../../components/ui/Snackbar';
 import { attendanceService } from './attendance.service';
-import { getDatabase } from '../../database/client';
+import { getDatabase } from '../../database/db';
 import { Colors, Typography, Layout, Radius } from '../../constants';
 import { format } from 'date-fns';
 
