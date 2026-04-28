@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as ExpoCrypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
 import { getDatabase } from '../database/client';
 import { BiometricResult } from '../types';
@@ -13,18 +14,10 @@ const KEYS = {
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECONDS = 30;
-const HARD_LOCKOUT_ATTEMPTS = 10;
 
-// React Native / Expo Go safe random hex string generator.
-// CryptoJS.lib.WordArray.random() requires a native crypto module
-// that is NOT available in Expo Go — this replaces it safely.
-function generateSalt(): string {
-  const chars = '0123456789abcdef';
-  let result = '';
-  for (let i = 0; i < 64; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
+async function generateSalt(): Promise<string> {
+  const bytes = await ExpoCrypto.getRandomBytesAsync(32);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 class SecurityService {
@@ -42,7 +35,7 @@ class SecurityService {
     }
     let salt = await SecureStore.getItemAsync(KEYS.salt);
     if (!salt) {
-      salt = generateSalt();
+      salt = await generateSalt();
       await SecureStore.setItemAsync(KEYS.salt, salt);
     }
     const hash = CryptoJS.SHA256(pin + salt).toString();
@@ -56,7 +49,6 @@ class SecurityService {
 
   async verifyPin(pin: string): Promise<boolean> {
     const fails = parseInt(await SecureStore.getItemAsync(KEYS.failCount) ?? '0', 10);
-    if (fails >= HARD_LOCKOUT_ATTEMPTS) return false;
     const lockoutExpiry = await this.getLockoutExpiry();
     if (lockoutExpiry && Date.now() < lockoutExpiry) return false;
     const db = await getDatabase();
@@ -75,10 +67,12 @@ class SecurityService {
       await this.recordActivity();
     } else {
       const newFails = fails + 1;
-      await SecureStore.setItemAsync(KEYS.failCount, String(newFails));
-      if (newFails % MAX_ATTEMPTS === 0 && newFails < HARD_LOCKOUT_ATTEMPTS) {
+      if (newFails >= MAX_ATTEMPTS) {
         const expiry = Date.now() + LOCKOUT_SECONDS * 1000;
         await SecureStore.setItemAsync(KEYS.failTime, String(expiry));
+        await SecureStore.setItemAsync(KEYS.failCount, '0');
+      } else {
+        await SecureStore.setItemAsync(KEYS.failCount, String(newFails));
       }
     }
     return isValid;
@@ -96,12 +90,14 @@ class SecurityService {
 
   async getLockoutExpiry(): Promise<number | null> {
     const val = await SecureStore.getItemAsync(KEYS.failTime);
-    return val ? parseInt(val, 10) : null;
-  }
-
-  async isHardLocked(): Promise<boolean> {
-    const fails = await this.getFailCount();
-    return fails >= HARD_LOCKOUT_ATTEMPTS;
+    if (!val) return null;
+    const expiry = parseInt(val, 10);
+    if (Date.now() >= expiry) {
+      await SecureStore.deleteItemAsync(KEYS.failTime);
+      await SecureStore.setItemAsync(KEYS.failCount, '0');
+      return null;
+    }
+    return expiry;
   }
 
   async isBiometricAvailable(): Promise<boolean> {
