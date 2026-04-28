@@ -16,39 +16,89 @@ function mapRow(row: any): Student {
   return { ...row, is_archived: row.is_archived === 1 };
 }
 
+type StudentPage = {
+  students: Student[];
+  hasMore: boolean;
+  nextPage: number;
+  total: number;
+};
+
+type StudentQueryFilters = Omit<StudentFilters, 'page' | 'pageSize'>;
+
+function buildStudentQuery(filters: StudentQueryFilters = {}) {
+  const {
+    searchQuery = '',
+    ministryId,
+    includeArchived = false,
+  } = filters;
+
+  let from = 'FROM students s';
+  const where = ['1=1'];
+  const params: any[] = [];
+
+  if (ministryId) {
+    from += ` JOIN enrollments e ON e.student_id = s.id
+      AND e.ministry_id = ? AND e.unenrolled_at IS NULL`;
+    params.push(ministryId);
+  }
+
+  if (!includeArchived) where.push('s.is_archived = 0');
+  if (searchQuery.trim()) {
+    where.push('(s.first_name LIKE ? OR s.last_name LIKE ? OR s.nickname LIKE ?)');
+    const like = `%${searchQuery.trim()}%`;
+    params.push(like, like, like);
+  }
+
+  return {
+    from,
+    where: `WHERE ${where.join(' AND ')}`,
+    params,
+  };
+}
+
 class StudentService {
   async getAll(filters: StudentFilters = {}): Promise<Student[]> {
     const db = await getDatabase();
-    const {
-      searchQuery = '',
-      ministryId,
-      includeArchived = false,
-      page = 0,
-      pageSize = Defaults.pageSize,
-    } = filters;
+    const { page = 0, pageSize } = filters;
+    const { from, where, params } = buildStudentQuery(filters);
 
-    let query = `SELECT DISTINCT s.* FROM students s`;
-    const params: any[] = [];
+    let query = `SELECT DISTINCT s.* ${from} ${where}
+      ORDER BY s.last_name ASC, s.first_name ASC`;
+    const queryParams = [...params];
 
-    if (ministryId) {
-      query += ` JOIN enrollments e ON e.student_id = s.id
-        AND e.ministry_id = ? AND e.unenrolled_at IS NULL`;
-      params.push(ministryId);
+    if (pageSize !== undefined) {
+      query += ' LIMIT ? OFFSET ?';
+      queryParams.push(pageSize, page * pageSize);
     }
 
-    query += ' WHERE 1=1';
-    if (!includeArchived) query += ' AND s.is_archived = 0';
-    if (searchQuery.trim()) {
-      query += ` AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.nickname LIKE ?)`;
-      const like = `%${searchQuery.trim()}%`;
-      params.push(like, like, like);
-    }
-
-    query += ` ORDER BY s.last_name ASC, s.first_name ASC LIMIT ? OFFSET ?`;
-    params.push(pageSize, page * pageSize);
-
-    const rows = await db.getAllAsync<any>(query, params);
+    const rows = await db.getAllAsync<any>(query, queryParams);
     return rows.map(mapRow);
+  }
+
+  async getPage(filters: StudentFilters = {}): Promise<StudentPage> {
+    const page = filters.page ?? 0;
+    const pageSize = filters.pageSize ?? Defaults.pageSize;
+    const rows = await this.getAll({ ...filters, page, pageSize: pageSize + 1 });
+    const hasMore = rows.length > pageSize;
+    const students = hasMore ? rows.slice(0, pageSize) : rows;
+    const total = await this.count(filters);
+
+    return {
+      students,
+      hasMore,
+      nextPage: page + 1,
+      total,
+    };
+  }
+
+  async count(filters: StudentQueryFilters = {}): Promise<number> {
+    const db = await getDatabase();
+    const { from, where, params } = buildStudentQuery(filters);
+    const row = await db.getFirstAsync<{ total: number }>(
+      `SELECT COUNT(DISTINCT s.id) AS total ${from} ${where}`,
+      params
+    );
+    return row?.total ?? 0;
   }
 
   async getById(id: number): Promise<Student | null> {

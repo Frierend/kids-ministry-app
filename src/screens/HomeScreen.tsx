@@ -34,14 +34,14 @@ export function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [name, sessions, students] = await Promise.all([
+    const [name, sessions, totalStudents] = await Promise.all([
       securityService.getTeacherName(),
       attendanceService.getRecentSessions(undefined, 5),
-      studentService.getAll({ includeArchived: false }),
+      studentService.count({ includeArchived: false }),
     ]);
     setTeacherName(name);
     setRecentSessions(sessions);
-    setStudentCount(students.length);
+    setStudentCount(totalStudents);
   }, []);
 
   useEffect(() => {

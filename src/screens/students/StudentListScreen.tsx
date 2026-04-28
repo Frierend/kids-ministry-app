@@ -21,6 +21,7 @@ import { Colors, Typography } from '../../constants';
 type Nav = NativeStackNavigationProp<StudentsStackParamList, 'StudentList'>;
 
 const ALL_MINISTRY_ID = 0;
+const STUDENT_PAGE_SIZE = 50;
 
 export function StudentListScreen() {
   const insets = useSafeAreaInsets();
@@ -32,20 +33,55 @@ export function StudentListScreen() {
   const [ministryId, setMinistryId] = useState<number | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
 
   const load = useCallback(async () => {
-    const [s, m] = await Promise.all([
-      studentService.getAll({
+    const [result, m] = await Promise.all([
+      studentService.getPage({
         searchQuery: search,
         ministryId: ministryId ?? undefined,
         includeArchived: showArchived,
+        page: 0,
+        pageSize: STUDENT_PAGE_SIZE,
       }),
       ministryService.getAll(),
     ]);
-    setStudents(s);
+    setStudents(result.students);
+    setPage(result.nextPage);
+    setHasMore(result.hasMore);
+    setTotalStudents(result.total);
     setMinistries(m);
   }, [search, ministryId, showArchived]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const result = await studentService.getPage({
+        searchQuery: search,
+        ministryId: ministryId ?? undefined,
+        includeArchived: showArchived,
+        page,
+        pageSize: STUDENT_PAGE_SIZE,
+      });
+
+      setStudents((current) => {
+        const seen = new Set(current.map((student) => student.id));
+        const newStudents = result.students.filter((student) => !seen.has(student.id));
+        return [...current, ...newStudents];
+      });
+      setPage(result.nextPage);
+      setHasMore(result.hasMore);
+      setTotalStudents(result.total);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, ministryId, page, search, showArchived]);
 
   useEffect(() => {
     if (isFocused) load();
@@ -92,7 +128,7 @@ export function StudentListScreen() {
     {
       id: ALL_MINISTRY_ID,
       name: 'All',
-      student_count: students.length,
+      student_count: totalStudents,
       uuid: '', description: null, active_days: [],
       points_config: { saturday: 20 as const, sunday: 50 as const },
       is_archived: false, created_at: '', updated_at: '',
@@ -111,7 +147,7 @@ export function StudentListScreen() {
           <View>
             <Text style={styles.headerTitle}>Students</Text>
             <Text style={styles.headerSub}>
-              {students.length} student{students.length !== 1 ? 's' : ''}
+              {totalStudents} student{totalStudents !== 1 ? 's' : ''}
               {showArchived ? ' (incl. archived)' : ''}
             </Text>
           </View>
@@ -161,6 +197,11 @@ export function StudentListScreen() {
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          loadingMore ? <Text style={styles.loadingMore}>Loading more students...</Text> : null
+        }
         ListEmptyComponent={
           <EmptyState
             icon="👥"
@@ -242,5 +283,11 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
+  },
+  loadingMore: {
+    paddingVertical: 16,
+    textAlign: 'center',
+    fontSize: Typography.xs,
+    color: Colors.muted,
   },
 });

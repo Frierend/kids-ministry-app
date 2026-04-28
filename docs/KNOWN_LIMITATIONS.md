@@ -2,8 +2,6 @@
 
 ## Verification
 
-- `npx tsc --noEmit` currently fails.
-- `npx expo install --check` currently reports SDK 54 package version mismatches.
 - No automated tests are currently configured.
 
 ## Architecture
@@ -16,14 +14,13 @@
 ## Data and Database
 
 - Migrations currently have only one version.
-- Database backups need additional WAL and schema-validation hardening.
-- Large lists may need better pagination behavior at the screen level.
+- Student list browsing now uses explicit pagination, and the home count uses a database count query.
+- Market Day loads active student names locally for picker/search so it does not silently cap at 25 students. Very large ministries may eventually need server-side style search/pagination for this picker.
 
 ## Security
 
 - PINs are limited to four digits.
 - Database contents are not encrypted at rest.
-- Salt generation and hard lockout recovery need review before production release.
 - Raw database backups should be treated as sensitive data.
 
 ## UI and Feature Coverage
